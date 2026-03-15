@@ -50,8 +50,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * 创建会话，如果因浏览器目录被锁而失败，自动杀掉全部浏览器进程后重试一次
  */
 async function createSessionWithRetry() {
+  // 禁止 Puppeteer 在 Ctrl+C 等信号时自动杀浏览器进程，
+  // 由 demo 自己处理 SIGINT → disconnect，浏览器保持运行可复用。
+  const opts = {
+    debugOpts: {
+      handleSIGINT: false,
+      handleSIGTERM: false,
+      handleSIGHUP: false,
+    },
+  };
+
   try {
-    return await createGeminiSession();
+    return await createGeminiSession(opts);
   } catch (err) {
     const msg = err.message || '';
     const isLocked = msg.includes('EPERM') || msg.includes('lock') || msg.includes('already');
@@ -67,7 +77,7 @@ async function createSessionWithRetry() {
     await sleep(2000);
 
     // 重试一次，还失败就直接抛出
-    return await createGeminiSession();
+    return await createGeminiSession(opts);
   }
 }
 
@@ -76,6 +86,13 @@ async function main() {
 
   // 创建会话：自带杀进程重试逻辑
   const { ops } = await createSessionWithRetry();
+
+  // ── Ctrl+C 时只断开连接，不杀浏览器进程（下次可复用） ──
+  process.on('SIGINT', () => {
+    console.log('\n[demo] Ctrl+C 收到，断开浏览器连接（浏览器保持运行）...');
+    disconnect();
+    process.exit(0);
+  });
 
   try {
     // 1. 探测页面状态

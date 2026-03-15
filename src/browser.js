@@ -286,9 +286,19 @@ async function connectBrowser(port) {
  * @param {number} opts.port
  * @param {string} opts.userDataDir
  * @param {boolean} opts.headless
+ * @param {object} [opts.debugOpts] - 调试/信号控制选项
+ * @param {boolean} [opts.debugOpts.handleSIGINT=true]   - Puppeteer 是否在 SIGINT 时自动关闭浏览器
+ * @param {boolean} [opts.debugOpts.handleSIGTERM=true]  - Puppeteer 是否在 SIGTERM 时自动关闭浏览器
+ * @param {boolean} [opts.debugOpts.handleSIGHUP=true]   - Puppeteer 是否在 SIGHUP 时自动关闭浏览器
  * @returns {Promise<import('puppeteer-core').Browser>}
  */
-async function launchBrowser({ executablePath, port, userDataDir, headless }) {
+async function launchBrowser({ executablePath, port, userDataDir, headless, debugOpts = {} }) {
+  const {
+    handleSIGINT = true,
+    handleSIGTERM = true,
+    handleSIGHUP = true,
+  } = debugOpts;
+
   const browser = await puppeteer.launch({
     executablePath,
     headless,
@@ -300,6 +310,9 @@ async function launchBrowser({ executablePath, port, userDataDir, headless }) {
     ],
     ignoreDefaultArgs: ['--enable-automation'],
     protocolTimeout: config.browserProtocolTimeout,
+    handleSIGINT,
+    handleSIGTERM,
+    handleSIGHUP,
   });
   console.log('[browser] launched, pid:', browser.process()?.pid, 'port:', port, 'path:', executablePath);
   return browser;
@@ -349,6 +362,7 @@ async function findOrCreateGeminiPage(browser) {
  * @param {number} [opts.port] - 调试端口（env: BROWSER_DEBUG_PORT，默认 9222）
  * @param {string} [opts.userDataDir] - 用户数据目录（env: BROWSER_USER_DATA_DIR，不传则多级兜底）
  * @param {boolean} [opts.headless] - 无头模式（env: BROWSER_HEADLESS，默认 false）
+ * @param {object} [opts.debugOpts] - 调试/信号控制选项（透传给 Puppeteer launch）
  * @returns {Promise<{browser: import('puppeteer-core').Browser, page: import('puppeteer-core').Page}>}
  */
 export async function ensureBrowser(opts = {}) {
@@ -357,6 +371,7 @@ export async function ensureBrowser(opts = {}) {
     port = config.browserDebugPort,
     userDataDir = resolveUserDataDir(),
     headless = config.browserHeadless,
+    debugOpts,
   } = opts;
 
   // 1. 复用已有连接
@@ -393,7 +408,7 @@ export async function ensureBrowser(opts = {}) {
   }
 
   try {
-    _browser = await launchBrowser({ executablePath: resolvedPath, port, userDataDir, headless });
+    _browser = await launchBrowser({ executablePath: resolvedPath, port, userDataDir, headless, debugOpts });
   } catch (err) {
     // 大概率是用户数据目录被正在运行的浏览器锁住了
     if (err.message?.includes('EPERM') || err.message?.includes('lock') || err.message?.includes('already')) {
