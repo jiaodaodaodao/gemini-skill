@@ -123,10 +123,9 @@ async function main() {
 
   } catch (err) {
     console.error('Error:', err);
-  } finally {
-    disconnect();
-    console.log('\n[done]');
   }
+
+  console.log('\n[done] 功能执行完毕，浏览器保持运行。按 Ctrl+C 退出。');
 }
 
 main().catch(console.error);
