@@ -111,14 +111,14 @@ export function createOps(page) {
 
       // 等待页面导航 / 内容刷新完成
       try {
-        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout });
+        await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout });
       } catch {
         // 部分场景下按钮不触发 navigation 而是 SPA 内部路由，静默跳过
         console.log('[ops] temp chat: navigation wait timed out, continuing (may be SPA routing)');
       }
 
       // 再给一点时间让 UI 稳定
-      await sleep(1000);
+      await sleep(500);
 
       console.log('[ops] entered temp chat mode');
       return { ok: true };

@@ -16,10 +16,9 @@ import puppeteerCore from 'puppeteer-core';
 import { addExtra } from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { createConnection } from 'node:net';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, cpSync } from 'node:fs';
 import { platform, homedir } from 'node:os';
-import { join } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { join, basename } from 'node:path';
 import config from './config.js';
 
 // ── 用 puppeteer-extra 包装 puppeteer-core，注入 stealth 插件 ──
@@ -93,36 +92,17 @@ function detectBrowser() {
   return undefined;
 }
 
-// ── userDataDir 兜底目录 ──
-const SKILL_FALLBACK_DATA_DIR = join(homedir(), '.gemini-skill', 'browser-data');
+// ── userDataDir：WJZ_P 全局浏览器数据目录 ──
+// 所有伟大的 WJZ_P 项目共享同一个浏览器数据目录，保证 cookie / 登录态跨项目统一。
+// 不使用浏览器默认数据目录的原因：
+//   - macOS 下 Chrome 不能用默认路径开启 debug 模式（数据目录被锁）
+//   - 独立目录保证与日常浏览器完全隔离，反爬更安全
+const GLOBAL_WJZ_DATA_DIR = join(homedir(), '.wjz_browser_data');
 
 /**
- * 尝试从 OpenClaw 获取 userDataDir
+ * 获取浏览器默认 userDataDir 路径（作为克隆源）
  *
- * 执行: openclaw browser --browser-profile openclaw status --json
- * 解析返回的 JSON 中的 userDataDir 字段
- *
- * @returns {string | undefined}
- */
-function getOpenClawUserDataDir() {
-  try {
-    const stdout = execFileSync('openclaw', [
-      'browser', '--browser-profile', 'openclaw', 'status', '--json',
-    ], { timeout: 5000, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] });
-
-    const json = JSON.parse(stdout);
-    if (json.userDataDir && typeof json.userDataDir === 'string') {
-      console.log('[browser] got userDataDir from OpenClaw:', json.userDataDir);
-      return json.userDataDir;
-    }
-  } catch {
-    // openclaw 不存在或执行失败，静默跳过
-  }
-  return undefined;
-}
-
-/**
- * 获取浏览器默认 userDataDir 路径（不同浏览器/平台）
+ * 按优先级尝试 Chrome > Edge > Chromium，返回第一个存在的路径。
  *
  * @returns {string | undefined}
  */
@@ -166,13 +146,76 @@ function getDefaultBrowserDataDir() {
 }
 
 /**
- * 多级兜底解析 userDataDir
+ * 从浏览器默认数据目录克隆关键资产到 WJZ 数据目录
+ *
+ * 只拷贝 cookie、登录态、偏好设置等"资产"，跳过锁文件和缓存，
+ * 确保克隆后的目录能正常启动且不与原浏览器实例冲突。
+ *
+ * 跳过的文件 / 目录（basename 匹配）：
+ *   - SingletonLock / SingletonSocket / SingletonCookie — 进程锁，拷贝会导致无法启动
+ *   - lockfile — 锁文件
+ *   - Cache / Code Cache / GPUCache / DawnCache / GrShaderCache — 缓存目录，体积大且不必要
+ *   - CrashpadMetrics-active.pma — 崩溃指标活跃文件
+ *   - BrowserMetrics / BrowserMetrics-spare.pma — 浏览器指标文件
+ *
+ * @param {string} sourceDir - 浏览器默认数据目录
+ * @param {string} targetDir - WJZ 数据目录
+ */
+function cloneProfileFromDefault(sourceDir, targetDir) {
+  console.log(`[browser] 首次运行，正在从浏览器默认数据克隆资产...`);
+  console.log(`[browser]   源：${sourceDir}`);
+  console.log(`[browser]   目标：${targetDir}`);
+
+  /** 需要跳过的文件 / 目录名（全部小写比较） */
+  const SKIP_NAMES = new Set([
+    // 进程锁
+    'singletonlock',
+    'singletonsocket',
+    'singletoncookie',
+    'lockfile',
+    // 缓存（体积大，浏览器会自动重建）
+    'cache',
+    'code cache',
+    'gpucache',
+    'dawncache',
+    'grshadercache',
+    // 崩溃 / 指标
+    'crashpadmetrics-active.pma',
+    'browsermetrics',
+    'browsermetrics-spare.pma',
+  ]);
+
+  /**
+   * cpSync 的 filter 回调：返回 true 表示拷贝，false 表示跳过
+   * @param {string} src
+   * @param {string} _dest
+   * @returns {boolean}
+   */
+  const filterFunc = (src, _dest) => {
+    const name = basename(src).toLowerCase();
+    if (SKIP_NAMES.has(name)) {
+      return false;
+    }
+    return true;
+  };
+
+  try {
+    cpSync(sourceDir, targetDir, { recursive: true, filter: filterFunc });
+    console.log(`[browser] 克隆完成`);
+  } catch (err) {
+    // 克隆失败不致命：目录已创建，浏览器会以全新状态启动（需手动登录）
+    console.warn(`[browser] ⚠ 克隆过程中出现错误（浏览器仍可启动，但需要重新登录）:`, err.message);
+  }
+}
+
+/**
+ * 解析 userDataDir
  *
  * 优先级：
  *   1. 环境变量 BROWSER_USER_DATA_DIR（config 已处理）
- *   2. OpenClaw 运行状态中的 userDataDir
- *   3. 浏览器默认 userDataDir（Chrome > Edge > Chromium）
- *   4. Skill 内部创建 ~/.gemini-skill/browser-data（兜底 + warning）
+ *   2. WJZ_P 全局目录 ~/.wjz_browser_data
+ *      - 目录已存在 → 直接使用
+ *      - 目录不存在（首次运行）→ 创建并从浏览器默认数据目录克隆关键资产
  *
  * @returns {string}
  */
@@ -182,29 +225,24 @@ function resolveUserDataDir() {
     return config.browserUserDataDir;
   }
 
-  // 2. OpenClaw
-  const openclawDir = getOpenClawUserDataDir();
-  if (openclawDir) {
-    return openclawDir;
+  // 2. WJZ_P 全局目录
+  if (existsSync(GLOBAL_WJZ_DATA_DIR)) {
+    console.log(`[browser] using WJZ data dir: ${GLOBAL_WJZ_DATA_DIR}`);
+    return GLOBAL_WJZ_DATA_DIR;
   }
 
-  // 3. 浏览器默认目录
+  // 首次运行：创建目录并尝试从浏览器默认数据克隆
+  console.log(`[browser] WJZ data dir not found, initializing: ${GLOBAL_WJZ_DATA_DIR}`);
+  mkdirSync(GLOBAL_WJZ_DATA_DIR, { recursive: true });
+
   const defaultDir = getDefaultBrowserDataDir();
   if (defaultDir) {
-    return defaultDir;
+    cloneProfileFromDefault(defaultDir, GLOBAL_WJZ_DATA_DIR);
+  } else {
+    console.log('[browser] 未找到浏览器默认数据目录，将使用空白配置（首次启动需手动登录）');
   }
 
-  // 4. Skill 兜底
-  console.warn(
-    `[browser] ⚠ 未找到任何已有的 userDataDir，将使用 skill 内部目录：${SKILL_FALLBACK_DATA_DIR}\n` +
-    `  建议通过以下方式指定：\n` +
-    `  - 设置环境变量 BROWSER_USER_DATA_DIR\n` +
-    `  - 安装 OpenClaw 并配置 browser profile`
-  );
-  if (!existsSync(SKILL_FALLBACK_DATA_DIR)) {
-    mkdirSync(SKILL_FALLBACK_DATA_DIR, { recursive: true });
-  }
-  return SKILL_FALLBACK_DATA_DIR;
+  return GLOBAL_WJZ_DATA_DIR;
 }
 
 /**
@@ -362,7 +400,7 @@ async function findOrCreateGeminiPage(browser) {
  *   3. 否则自动检测 / 使用配置的路径启动浏览器
  *
  * userDataDir 解析优先级：
- *   opts.userDataDir > env BROWSER_USER_DATA_DIR > OpenClaw > 浏览器默认 > skill 兜底
+ *   opts.userDataDir > env BROWSER_USER_DATA_DIR > ~/.wjz_browser_data（首次自动从浏览器默认数据克隆）
  *
  * @param {object} [opts]
  * @param {string} [opts.executablePath] - 浏览器路径（不传则自动检测）
