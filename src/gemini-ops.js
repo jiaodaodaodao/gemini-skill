@@ -36,6 +36,10 @@ const SELECTORS = {
     'button.temp-chat-button',                     // class 名兜底
     'button[mattooltip="临时对话"]',                // Angular Material tooltip 属性
   ],
+  sidebarContainer: [
+    '[data-test-id="overflow-container"]',         // 测试专属属性
+    'div.overflow-container',                      // class 兜底
+  ],
 };
 
 /**
@@ -385,6 +389,31 @@ export function createOps(page) {
       return page;
     },
   };
+}
+
+/**
+ * 判断侧边栏是否处于展开状态（内部工具函数，不对外暴露）
+ *
+ * 通过 overflow-container 元素的实际渲染宽度判断：
+ *   - width >= 100px → 展开
+ *   - width <  100px → 折叠
+ *
+ * @param {ReturnType<typeof createOperator>} op
+ * @returns {Promise<{ok: boolean, expanded: boolean, width: number, error?: string}>}
+ */
+function isSidebarExpanded(op) {
+  return op.query((sels) => {
+    let el = null;
+    for (const sel of sels) {
+      try { el = document.querySelector(sel); } catch { /* skip */ }
+      if (el) break;
+    }
+    if (!el) {
+      return { ok: false, expanded: false, width: 0, error: 'sidebar_container_not_found' };
+    }
+    const width = el.getBoundingClientRect().width;
+    return { ok: true, expanded: width >= 100, width };
+  }, SELECTORS.sidebarContainer);
 }
 
 function sleep(ms) {
