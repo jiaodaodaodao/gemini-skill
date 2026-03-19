@@ -125,7 +125,7 @@ const config = {
   browserProtocolTimeout: envInt('BROWSER_PROTOCOL_TIMEOUT', 60_000),
 
   /** 截图 / 图片输出目录 */
-  outputDir: envStr('OUTPUT_DIR', resolve('output')),
+  outputDir: envStr('OUTPUT_DIR', join(projectRoot, 'gemini-image')),
 
   // ── Daemon 配置 ──
 
