@@ -33,6 +33,16 @@ server.registerTool(
     try {
       const { ops } = await createGeminiSession();
 
+      // 前置检查：确保已登录
+      const loginCheck = await ops.checkLogin();
+      if (!loginCheck.ok || !loginCheck.loggedIn) {
+        disconnect();
+        return {
+          content: [{ type: "text", text: `Gemini 未登录 Google 账号，请先在浏览器中完成登录后重试` }],
+          isError: true,
+        };
+      }
+
       // 如果有参考图，先上传
       if (referenceImages.length > 0) {
         // 需要先处理新建会话（如果需要），因为 generateImage 内部的 newChat 会在上传之后才执行
