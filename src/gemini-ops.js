@@ -6,6 +6,7 @@
  *   全部通过 CDP 实现，不往页面注入任何对象。
  */
 import { createOperator } from './operator.js';
+import { sleep } from './util.js';
 
 // ── Gemini 页面元素选择器 ──
 const SELECTORS = {

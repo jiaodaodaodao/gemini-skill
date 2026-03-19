@@ -7,6 +7,7 @@ import { join } from "node:path";
 // 复用已有的统一入口，不修改原有逻辑
 import { createGeminiSession, disconnect } from './index.js';
 import config from './config.js';
+import { sleep } from './util.js';
 
 const server = new McpServer({
   name: "gemini-mcp-server",
