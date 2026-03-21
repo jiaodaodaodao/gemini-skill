@@ -711,8 +711,8 @@ export function createOps(page) {
      * @returns {Promise<{ok: boolean, filePath?: string, suggestedFilename?: string, src?: string, index?: number, total?: number, error?: string}>}
      */
     async downloadFullSizeImage({ index, timeout = 30_000 } = {}) {
-      // 1. 定位目标图片，获取其坐标用于 hover
-      const imgInfo = await op.query((targetIndex) => {
+      // 1a. 先将目标图片滚动到屏幕正中间，避免视口外的元素无法交互
+      const scrollResult = await op.query((targetIndex) => {
         const imgs = [...document.querySelectorAll('img.image.loaded')];
         if (!imgs.length) return { ok: false, error: 'no_loaded_images', total: 0 };
 
@@ -721,6 +721,20 @@ export function createOps(page) {
           return { ok: false, error: 'index_out_of_range', total: imgs.length, requestedIndex: i };
         }
 
+        const img = imgs[i];
+        // 【关键修复】：强行把图片滚到屏幕正中间，避免视口外的元素无法交互
+        img.scrollIntoView({ behavior: 'instant', block: 'center' });
+        return { ok: true, index: i, total: imgs.length };
+      }, index);
+
+      if (!scrollResult.ok) return scrollResult;
+
+      // 1b. 等待滚动和重排完成后，再获取准确的坐标
+      await sleep(250);
+
+      const imgInfo = await op.query((targetIndex) => {
+        const imgs = [...document.querySelectorAll('img.image.loaded')];
+        const i = targetIndex == null ? imgs.length - 1 : targetIndex;
         const img = imgs[i];
         const rect = img.getBoundingClientRect();
         return {
@@ -731,7 +745,9 @@ export function createOps(page) {
           index: i,
           total: imgs.length,
         };
-      }, index);
+      }, scrollResult.index);
+
+      console.log('[downloadFullSizeImage] imgInfo', imgInfo);
 
       if (!imgInfo.ok) return imgInfo;
 
@@ -768,7 +784,7 @@ export function createOps(page) {
             clearTimeout(timer);
             client.off('Browser.downloadWillBegin', onBegin);
             client.off('Browser.downloadProgress', onProgress);
-            resolve({ suggestedFilename });
+            resolve({ suggestedFilename, guid });
           } else if (evt.state === 'canceled') {
             clearTimeout(timer);
             client.off('Browser.downloadWillBegin', onBegin);
@@ -786,7 +802,7 @@ export function createOps(page) {
       await sleep(500);
 
       // 5. 点击"下载完整尺寸"按钮（带重试：hover 可能需要更长时间触发工具栏）
-      const btnSelector = 'button[data-test-id="download-enhanced-image-button"]';
+      const btnSelector = 'button[data-test-id="download-generated-image-button"]';
       const clickResult = await op.click(btnSelector);
 
       if (!clickResult.ok) {
@@ -794,15 +810,33 @@ export function createOps(page) {
       }
 
       // 6. 等待下载完成
+      //    allowAndName 模式下，Chrome 会把文件以 GUID 命名保存到 downloadDir，
+      //    真正的文件名在 downloadWillBegin 事件的 suggestedFilename 里。
+      //    下载完成后需要把 GUID 文件重命名为目标文件名。
       try {
-        const { suggestedFilename } = await downloadPromise;
+        const { suggestedFilename, guid } = await downloadPromise;
         const { join } = await import('node:path');
-        const filePath = join(downloadDir, suggestedFilename || `gemini_fullsize_${Date.now()}.png`);
+        const { renameSync, existsSync } = await import('node:fs');
+
+        const targetName = suggestedFilename || `gemini_fullsize_${Date.now()}.png`;
+        const guidPath = join(downloadDir, guid);
+        const filePath = join(downloadDir, targetName);
+
+        // 将 GUID 文件重命名为正确的文件名
+        if (existsSync(guidPath)) {
+          renameSync(guidPath, filePath);
+          console.log(`[ops] 已重命名: ${guid} → ${targetName}`);
+        } else {
+          // 有些 Chrome 版本可能已经用 suggestedFilename 保存了，检查一下
+          if (!existsSync(filePath)) {
+            console.warn(`[ops] 下载文件未找到: 既不存在 ${guidPath} 也不存在 ${filePath}`);
+          }
+        }
 
         return {
           ok: true,
           filePath,
-          suggestedFilename,
+          suggestedFilename: targetName,
           src: imgInfo.src,
           index: imgInfo.index,
           total: imgInfo.total,
