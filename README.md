@@ -14,6 +14,12 @@
 - 🧹 **自动去水印** — 下载的图片自动移除 Gemini 水印
 - 🤖 **MCP Server** — 标准 MCP 协议接口，可被任何 MCP 客户端（如 Claude、CodeBuddy 等）调用
 
+## 📸 示例
+
+通过 AI 对话自动生成游戏风格表情包：
+
+<img src="./markdown/example.png" width="400" alt="Gemini 生图示例" />
+
 ## 🏗️ 架构
 
 ```

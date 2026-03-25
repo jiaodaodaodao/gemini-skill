@@ -14,6 +14,12 @@ Automate Gemini web (gemini.google.com) via CDP (Chrome DevTools Protocol) — A
 - 🧹 **Auto Watermark Removal** — Downloaded images automatically have the Gemini watermark stripped
 - 🤖 **MCP Server** — Standard MCP protocol interface, callable by any MCP client (Claude, CodeBuddy, etc.)
 
+## 📸 Example
+
+Generate game-style sticker images through AI conversation:
+
+<img src="./markdown/example.png" width="400" alt="Gemini image generation example" />
+
 ## 🏗️ Architecture
 
 ```
