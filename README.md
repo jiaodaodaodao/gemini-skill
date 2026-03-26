@@ -1,24 +1,112 @@
-# Gemini Skill
+<!-- PROJECT SHIELDS -->
 
-[English](./README.en.md) | 中文
+<div align="center">
 
-通过 CDP（Chrome DevTools Protocol）操控 Gemini 网页版（gemini.google.com），实现 AI 生图、对话、图片提取等自动化操作。
+  <a href="https://github.com/WJZ-P/gemini-skill/graphs/contributors">
+    <img src="https://img.shields.io/github/contributors/WJZ-P/gemini-skill.svg?style=flat-square" alt="Contributors" style="height: 30px">
+  </a>
+  &nbsp;
+  <a href="https://github.com/WJZ-P/gemini-skill/network/members">
+    <img src="https://img.shields.io/github/forks/WJZ-P/gemini-skill.svg?style=flat-square" alt="Forks" style="height: 30px">
+  </a>
+  &nbsp;
+  <a href="https://github.com/WJZ-P/gemini-skill/stargazers">
+    <img src="https://img.shields.io/github/stars/WJZ-P/gemini-skill.svg?style=flat-square" alt="Stargazers" style="height: 30px">
+  </a>
+  &nbsp;
+  <a href="https://github.com/WJZ-P/gemini-skill/issues">
+    <img src="https://img.shields.io/github/issues/WJZ-P/gemini-skill.svg?style=flat-square" alt="Issues" style="height: 30px">
+  </a>
+  &nbsp;
+  <a href="https://github.com/WJZ-P/gemini-skill/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/WJZ-P/gemini-skill.svg?style=flat-square" alt="License" style="height: 30px">
+  </a>
 
-## ✨ 功能
+</div>
 
-- 🎨 **AI 生图** — 发送 prompt 自动生成图片，支持高清原图下载
-- 💬 **文本对话** — 与 Gemini 进行多轮对话
-- 🖼️ **图片上传** — 上传参考图片，基于参考图生成新图
-- 📥 **图片提取** — 提取会话中的图片，支持 base64 和 CDP 完整尺寸下载
-- 🔄 **会话管理** — 新建会话、临时会话、切换模型、导航到历史会话
-- 🧹 **自动去水印** — 下载的图片自动移除 Gemini 水印
-- 🤖 **MCP Server** — 标准 MCP 协议接口，可被任何 MCP 客户端（如 Claude、CodeBuddy 等）调用
+<br>
 
-## 📸 示例
+<!-- PROJECT LOGO -->
 
-通过 AI 对话自动生成游戏风格表情包：
+<p align="center">
+  <a href="https://github.com/WJZ-P/gemini-skill/">
+    <img src="markdown/gemini-color.svg" alt="Logo" width="96" height="96">
+  </a>
+</p>
 
-<img src="./markdown/example.png" width="400" alt="Gemini 生图示例" />
+<h1 align="center">Gemini Skill</h1>
+
+<p align="center">
+  通过 CDP 操控 Gemini 网页版，实现 AI 生图、对话、图片提取等自动化操作。
+  <br><br>
+  <a href="#-使用">快速开始</a>
+  ·
+  <a href="https://github.com/WJZ-P/gemini-skill/issues">报告 Bug</a>
+  ·
+  <a href="https://github.com/WJZ-P/gemini-skill/issues">提出新特性</a>
+</p>
+
+<p align="center">
+  <a href="./README.en.md">English</a> | 中文
+</p>
+
+<br>
+
+
+<p align="center">
+  <a href="https://www.bilibili.com/video/BV1e54y1z7XM">
+    <img src="markdown/home.png" alt="纯蓝">
+  </a>
+</p>
+<h2 align="center">
+
+「剥开了尖刺 &nbsp; 却正如你曾经说
+
+赖以生存的温柔只是白纸
+
+盛着破碎的梦和我们的故事」
+
+</h2>
+
+## 目录
+
+- [功能特性](#-功能特性)
+- [架构](#️-架构)
+- [安装](#-安装)
+- [配置](#️-配置)
+- [使用](#-使用)
+- [MCP 工具列表](#-mcp-工具列表)
+- [Daemon 生命周期](#-daemon-生命周期)
+- [项目结构](#-项目结构)
+- [注意事项](#️-注意事项)
+- [To Do List](#-to-do-list)
+- [License](#-license)
+
+<br>
+
+<!-- EXAMPLE -->
+
+<p align="center">
+  <img src="./markdown/example.png" alt="Gemini 生图示例" width="400">
+</p>
+
+<p align="center"><em>▲ 通过 AI 对话自动生成表情包</em></p>
+
+<br>
+
+## ✨ 功能特性
+
+|  | 功能 | 说明 |
+|:---:|------|------|
+| 🎨 | **AI 生图** | 发送 prompt 自动生成图片，支持高清原图下载 |
+| 💬 | **文本对话** | 与 Gemini 进行多轮对话 |
+| 🖼️ | **图片上传** | 上传参考图片，基于参考图生成新图 |
+| 📥 | **图片提取** | 提取会话中的图片，支持 base64 和 CDP 完整尺寸下载 |
+| 🔄 | **会话管理** | 新建会话、临时会话、切换模型、导航到历史会话 |
+| 🧹 | **自动去水印** | 下载的图片自动移除 Gemini 水印 |
+| 🤖 | **MCP Server** | 标准 MCP 协议接口，可被任何 MCP 客户端调用 |
+
+<br>
 
 ## 🏗️ 架构
 
@@ -59,6 +147,8 @@
 - **Stealth 反爬** — 使用 `puppeteer-extra-plugin-stealth` 绕过网站检测
 - **职责分离** — `mcp-server.js`（协议层）→ `gemini-ops.js`（操作层）→ `browser.js`（连接层）→ `daemon/`（进程管理）
 
+<br>
+
 ## 📦 安装
 
 ### 前置条件
@@ -74,6 +164,8 @@ git clone https://github.com/WJZ-P/gemini-skill.git
 cd gemini-skill
 npm install
 ```
+
+<br>
 
 ## ⚙️ 配置
 
@@ -102,6 +194,8 @@ npm install
 也支持 `.env.development` 文件（优先级高于 `.env`）。
 
 **配置优先级：** `process.env` > `.env.development` > `.env` > 代码默认值
+
+<br>
 
 ## 🚀 使用
 
@@ -149,6 +243,8 @@ console.log('图片保存至:', result.filePath);
 // 用完断开（不关浏览器，由 Daemon 继续守护）
 disconnect();
 ```
+
+<br>
 
 ## 🔧 MCP 工具列表
 
@@ -198,6 +294,8 @@ disconnect();
 | `gemini_reload_page` | 刷新页面 | `timeout` |
 | `gemini_browser_info` | 获取浏览器连接信息 | 无 |
 
+<br>
+
 ## 🔄 Daemon 生命周期
 
 ```
@@ -225,6 +323,8 @@ disconnect();
 | `POST /browser/release` | 主动销毁浏览器 |
 | `GET /health` | Daemon 健康检查 |
 
+<br>
+
 ## 📁 项目结构
 
 ```
@@ -251,6 +351,8 @@ gemini-skill/
 └── .env                       # 环境配置（需自行创建）
 ```
 
+<br>
+
 ## ⚠️ 注意事项
 
 1. **首次使用需登录** — 第一次运行时浏览器会打开 Gemini 页面，请手动完成 Google 账号登录。登录状态会保存在 `userDataDir` 中，后续无需重复登录。
@@ -264,9 +366,33 @@ gemini-skill/
 
 4. **生图耗时较长** — 通常 60~120 秒，MCP 客户端的 `timeoutMs` 建议设为 ≥ 180000（3 分钟）。
 
+<br>
+
+## 📝 To Do List
+
+- [x] **MCP 协议全量工具注册**
+- [x] **Daemon 进程按需自启**
+- [x] **高清原图 CDP 下载**
+- [x] **自动去水印**
+- [x] **参考图上传 & 图生图**
+- [x] **历史会话导航**
+- [ ] **多浏览器实例并行支持**
+- [ ] **支持音乐生成**
+- [ ] **支持视频生成**
+<br>
+
 ## 📄 License
 
-ISC
+该项目签署了 MIT 授权许可，详情请参阅 [LICENSE](https://github.com/WJZ-P/gemini-skill/blob/main/LICENSE)
 
-## LINUX DO 
-本项目支持[LINUX DO](https://linux.do) 社区
+## LINUX DO
+
+本项目支持 [LINUX DO](https://linux.do) 社区
+
+<br>
+
+## 如果觉得好用，请给个 ⭐ 支持一下！
+
+## ⭐ Star 历史
+
+[![Stargazers over time](https://starchart.cc/WJZ-P/gemini-skill.svg?variant=adaptive)](https://starchart.cc/WJZ-P/gemini-skill)

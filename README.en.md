@@ -1,24 +1,112 @@
-# Gemini Skill
+<!-- PROJECT SHIELDS -->
 
-English | [中文](./README.md)
+<div align="center">
 
-Automate Gemini web (gemini.google.com) via CDP (Chrome DevTools Protocol) — AI image generation, conversations, image extraction, and more.
+  <a href="https://github.com/WJZ-P/gemini-skill/graphs/contributors">
+    <img src="https://img.shields.io/github/contributors/WJZ-P/gemini-skill.svg?style=flat-square" alt="Contributors" style="height: 30px">
+  </a>
+  &nbsp;
+  <a href="https://github.com/WJZ-P/gemini-skill/network/members">
+    <img src="https://img.shields.io/github/forks/WJZ-P/gemini-skill.svg?style=flat-square" alt="Forks" style="height: 30px">
+  </a>
+  &nbsp;
+  <a href="https://github.com/WJZ-P/gemini-skill/stargazers">
+    <img src="https://img.shields.io/github/stars/WJZ-P/gemini-skill.svg?style=flat-square" alt="Stargazers" style="height: 30px">
+  </a>
+  &nbsp;
+  <a href="https://github.com/WJZ-P/gemini-skill/issues">
+    <img src="https://img.shields.io/github/issues/WJZ-P/gemini-skill.svg?style=flat-square" alt="Issues" style="height: 30px">
+  </a>
+  &nbsp;
+  <a href="https://github.com/WJZ-P/gemini-skill/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/WJZ-P/gemini-skill.svg?style=flat-square" alt="License" style="height: 30px">
+  </a>
+
+</div>
+
+<br>
+
+<!-- PROJECT LOGO -->
+
+<p align="center">
+  <a href="https://github.com/WJZ-P/gemini-skill/">
+    <img src="markdown/gemini-color.svg" alt="Logo" width="96" height="96">
+  </a>
+</p>
+
+<h1 align="center">Gemini Skill</h1>
+
+<p align="center">
+  Automate Gemini web via CDP — AI image generation, conversations, image extraction, and more.
+  <br><br>
+  <a href="#-usage">Quick Start</a>
+  ·
+  <a href="https://github.com/WJZ-P/gemini-skill/issues">Report Bug</a>
+  ·
+  <a href="https://github.com/WJZ-P/gemini-skill/issues">Request Feature</a>
+</p>
+
+<p align="center">
+  English | <a href="./README.md">中文</a>
+</p>
+
+<br>
+
+
+<p align="center">
+  <a href="https://www.bilibili.com/video/BV1z64y1b7H4">
+    <img src="markdown/home.png" alt="Pure Blue">
+  </a>
+</p>
+<h2 align="center">
+
+"Thorns peeled away, &nbsp; yet just as you once said,
+
+The tenderness we clung to is but a blank page,
+
+Cradling shattered dreams and the story we made."
+
+</h2>
+
+## Table of Contents
+
+- [Features](#-features)
+- [Architecture](#️-architecture)
+- [Installation](#-installation)
+- [Configuration](#️-configuration)
+- [Usage](#-usage)
+- [MCP Tools](#-mcp-tools)
+- [Daemon Lifecycle](#-daemon-lifecycle)
+- [Project Structure](#-project-structure)
+- [Notes](#️-notes)
+- [To Do List](#-to-do-list)
+- [License](#-license)
+
+<br>
+
+<!-- EXAMPLE -->
+
+<p align="center">
+  <img src="./markdown/example.png" alt="Gemini image generation example" width="400">
+</p>
+
+<p align="center"><em>▲ Auto-generate sticker images through AI conversation</em></p>
+
+<br>
 
 ## ✨ Features
 
-- 🎨 **AI Image Generation** — Send prompts to generate images, with full-size high-res download support
-- 💬 **Text Conversations** — Multi-turn dialogue with Gemini
-- 🖼️ **Image Upload** — Upload reference images for image-to-image generation
-- 📥 **Image Extraction** — Extract images from sessions via base64 or CDP full-size download
-- 🔄 **Session Management** — New chat, temp chat, model switching, navigate to historical sessions
-- 🧹 **Auto Watermark Removal** — Downloaded images automatically have the Gemini watermark stripped
-- 🤖 **MCP Server** — Standard MCP protocol interface, callable by any MCP client (Claude, CodeBuddy, etc.)
+|  | Feature | Description |
+|:---:|---------|-------------|
+| 🎨 | **AI Image Generation** | Send prompts to generate images, with full-size high-res download support |
+| 💬 | **Text Conversations** | Multi-turn dialogue with Gemini |
+| 🖼️ | **Image Upload** | Upload reference images for image-to-image generation |
+| 📥 | **Image Extraction** | Extract images from sessions via base64 or CDP full-size download |
+| 🔄 | **Session Management** | New chat, temp chat, model switching, navigate to historical sessions |
+| 🧹 | **Auto Watermark Removal** | Downloaded images automatically have the Gemini watermark stripped |
+| 🤖 | **MCP Server** | Standard MCP protocol interface, callable by any MCP client |
 
-## 📸 Example
-
-Generate game-style sticker images through AI conversation:
-
-<img src="./markdown/example.png" width="400" alt="Gemini image generation example" />
+<br>
 
 ## 🏗️ Architecture
 
@@ -59,6 +147,8 @@ Generate game-style sticker images through AI conversation:
 - **Stealth Anti-detect** — Uses `puppeteer-extra-plugin-stealth` to bypass website bot detection.
 - **Separation of Concerns** — `mcp-server.js` (protocol) → `gemini-ops.js` (operations) → `browser.js` (connection) → `daemon/` (process management)
 
+<br>
+
 ## 📦 Installation
 
 ### Prerequisites
@@ -74,6 +164,8 @@ git clone https://github.com/WJZ-P/gemini-skill.git
 cd gemini-skill
 npm install
 ```
+
+<br>
 
 ## ⚙️ Configuration
 
@@ -102,6 +194,8 @@ All configuration is done via environment variables or a `.env` file. Create a `
 `.env.development` is also supported (takes priority over `.env`).
 
 **Priority order:** `process.env` > `.env.development` > `.env` > code defaults
+
+<br>
 
 ## 🚀 Usage
 
@@ -149,6 +243,8 @@ console.log('Image saved to:', result.filePath);
 // Disconnect when done (browser stays alive, managed by Daemon)
 disconnect();
 ```
+
+<br>
 
 ## 🔧 MCP Tools
 
@@ -198,6 +294,8 @@ disconnect();
 | `gemini_reload_page` | Reload the page | `timeout` |
 | `gemini_browser_info` | Get browser connection info | — |
 
+<br>
+
 ## 🔄 Daemon Lifecycle
 
 ```
@@ -225,6 +323,8 @@ First MCP call
 | `POST /browser/release` | Manually destroy the browser |
 | `GET /health` | Daemon health check |
 
+<br>
+
 ## 📁 Project Structure
 
 ```
@@ -251,6 +351,8 @@ gemini-skill/
 └── .env                       # Environment config (create manually)
 ```
 
+<br>
+
 ## ⚠️ Notes
 
 1. **First-time login required** — On the first run, the browser will open the Gemini page. Complete Google account login manually. Login state is persisted in `userDataDir`, so subsequent runs won't require re-login.
@@ -264,9 +366,34 @@ gemini-skill/
 
 4. **Image generation takes time** — Typically 60–120 seconds. Set your MCP client's `timeoutMs` to ≥ 180000 (3 minutes).
 
+<br>
+
+## 📝 To Do List
+
+- [x] **Full MCP tool registration**
+- [x] **On-demand Daemon auto-start**
+- [x] **Full-size CDP image download**
+- [x] **Auto watermark removal**
+- [x] **Reference image upload & image-to-image**
+- [x] **Historical session navigation**
+- [ ] **Multi-browser instance parallel support**
+- [ ] **Music generation support**
+- [ ] **Video generation support**
+
+<br>
+
 ## 📄 License
 
-ISC
+This project is licensed under the MIT License — see [LICENSE](https://github.com/WJZ-P/gemini-skill/blob/main/LICENSE) for details.
 
-## LINUX DO 
-This project supports [LINUX DO](https://linux.do) community.
+## LINUX DO
+
+This project supports the [LINUX DO](https://linux.do) community.
+
+<br>
+
+## If you find this useful, give it a ⭐!
+
+## ⭐ Star History
+
+[![Stargazers over time](https://starchart.cc/WJZ-P/gemini-skill.svg?variant=adaptive)](https://starchart.cc/WJZ-P/gemini-skill)
