@@ -25,6 +25,7 @@ console.debug = console.error;
 import { createGeminiSession, disconnect } from './index.js';
 import config from './config.js';
 import { sleep } from './util.js';
+import { businessChat, businessGenerateImage, businessHealthCheck, parseBusinessAccount } from './business-api.js';
 
 const server = new McpServer({
   name: "gemini-mcp-server",
@@ -60,6 +61,25 @@ server.registerTool(
   },
   async ({ prompt, newSession, referenceImages, fullSize, timeout }) => {
     try {
+      if (config.businessMode) {
+        const result = await businessGenerateImage(prompt, timeout);
+
+        if (result.kind === 'url') {
+          return {
+            content: [{ type: "text", text: `图片生成成功！（business2api）\n图片链接: ${result.url}` }],
+          };
+        }
+
+        const ext = 'png';
+        mkdirSync(config.outputDir, { recursive: true });
+        const filename = `business_${Date.now()}.${ext}`;
+        const filePath = join(config.outputDir, filename);
+        writeFileSync(filePath, Buffer.from(result.b64, 'base64'));
+        return {
+          content: [{ type: "text", text: `图片生成成功！（business2api）\n已保存至: ${filePath}` }],
+        };
+      }
+
       const { ops } = await createGeminiSession();
 
       // 前置检查：确保已登录
@@ -97,12 +117,6 @@ server.registerTool(
         console.error(`[mcp] ${referenceImages.length} 张参考图上传完成`);
       }
 
-
-      // 新建会话（如需）
-      if (newSession) {
-        await ops.click('newChatBtn');
-        await sleep(250);
-      }
 
       const result = await ops.generateImage(prompt, { fullSize, timeout });
 
@@ -255,6 +269,13 @@ server.registerTool(
   },
   async ({ message, timeout }) => {
     try {
+      if (config.businessMode) {
+        const result = await businessChat(message, timeout);
+        return {
+          content: [{ type: "text", text: result.text }],
+        };
+      }
+
       const { ops } = await createGeminiSession();
       const result = await ops.sendAndWait(message, { timeout });
       disconnect();
@@ -336,6 +357,52 @@ server.registerTool(
     } catch (err) {
       return { content: [{ type: "text", text: `执行崩溃: ${err.message}` }], isError: true };
     }
+  }
+);
+
+server.registerTool(
+  "gemini_business_account_parse",
+  {
+    description: "解析 Business2API 账号导入字符串，支持 Cloudflare 临时邮箱格式：cfmail----you@example.com----jwtToken",
+    inputSchema: {
+      account: z.string().optional().describe("账号字符串；不传时读取环境变量 BUSINESS_ACCOUNT"),
+    },
+  },
+  async ({ account }) => {
+    const input = account || config.businessAccount;
+    const result = parseBusinessAccount(input);
+    if (!result.ok) {
+      return {
+        content: [{ type: "text", text: `解析失败: ${result.error}` }],
+        isError: true,
+      };
+    }
+    const safe = {
+      ok: true,
+      provider: result.provider,
+      email: result.email,
+      hasJwtToken: !!result.jwtToken,
+    };
+    return {
+      content: [{ type: "text", text: JSON.stringify(safe, null, 2) }],
+    };
+  }
+);
+
+server.registerTool(
+  "gemini_business_health_check",
+  {
+    description: "检查 Business2API 配置完整性并探测 /v1/models 可用性（用于快速排障）",
+    inputSchema: {
+      timeout: z.number().default(8000).describe("网络探测超时（毫秒），默认 8000"),
+    },
+  },
+  async ({ timeout }) => {
+    const result = await businessHealthCheck(timeout);
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      isError: !result.ok,
+    };
   }
 );
 
@@ -479,6 +546,12 @@ server.registerTool(
   },
   async () => {
     try {
+      if (config.businessMode) {
+        return {
+          content: [{ type: "text", text: "Business2API 模式已启用（无需 Gemini 网页登录态）" }],
+        };
+      }
+
       const { ops } = await createGeminiSession();
       const result = await ops.checkLogin();
       disconnect();

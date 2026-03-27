@@ -26,6 +26,10 @@ puppeteer.use(StealthPlugin());
 let _browser = null;
 let _shuttingDown = false;  // 防止 disconnected 回调与主动 terminate 重入
 let _shutdownCallback = null;  // 由 server 注入的关闭回调
+let _proxyCursor = 0;
+let _runtimeMeta = {
+  selectedProxy: null,
+};
 
 /**
  * 注入 Daemon 关闭回调
@@ -239,6 +243,33 @@ export function getBrowser() {
 }
 
 /**
+ * 获取当前运行时元信息（代理等）
+ */
+export function getRuntimeMeta() {
+  return { ..._runtimeMeta };
+}
+
+function sanitizeProxyForLog(proxy) {
+  if (!proxy) return null;
+  // 避免日志暴露账号密码
+  return proxy.replace(/\/\/([^:@/]+):([^@/]+)@/, '//***:***@');
+}
+
+function pickProxyFromPool() {
+  const pool = config.proxyPool || [];
+  if (pool.length === 0) return null;
+
+  if (config.proxyStrategy === 'random') {
+    const idx = Math.floor(Math.random() * pool.length);
+    return pool[idx];
+  }
+
+  const idx = _proxyCursor % pool.length;
+  _proxyCursor += 1;
+  return pool[idx];
+}
+
+/**
  * 确保浏览器可用（冷启动 or 复用），返回 browser 实例
  *
  * Daemon 场景：不处理 SIGINT/SIGTERM（由 server.js 统一管理信号）
@@ -283,7 +314,15 @@ export async function ensureBrowserForDaemon() {
     headless: config.browserHeadless,
     userDataDir,
     defaultViewport: null,
-    args: [...BROWSER_ARGS, `--remote-debugging-port=${port}`],
+    args: (() => {
+      const pickedProxy = pickProxyFromPool();
+      _runtimeMeta.selectedProxy = pickedProxy;
+      const proxyArg = pickedProxy ? [`--proxy-server=${pickedProxy}`] : [];
+      if (pickedProxy) {
+        console.log(`[engine] 启用代理: ${sanitizeProxyForLog(pickedProxy)} (strategy=${config.proxyStrategy})`);
+      }
+      return [...BROWSER_ARGS, ...proxyArg, `--remote-debugging-port=${port}`];
+    })(),
     ignoreDefaultArgs: ['--enable-automation'],
     protocolTimeout: config.browserProtocolTimeout,
     // Daemon 自己管信号，不让 Puppeteer 接管
@@ -294,7 +333,7 @@ export async function ensureBrowserForDaemon() {
 
   const pid = _browser.process()?.pid;
   registerDisconnectHandler(_browser);
-  console.log(`[engine] 浏览器已启动 pid=${pid} port=${port} path=${executablePath}`);
+  console.log(`[engine] 浏览器已启动 pid=${pid} port=${port} path=${executablePath} proxy=${sanitizeProxyForLog(_runtimeMeta.selectedProxy) || 'none'}`);
 
   return _browser;
 }
@@ -320,5 +359,6 @@ export async function terminateBrowser() {
   } finally {
     _browser = null;
     _shuttingDown = false;
+    _runtimeMeta.selectedProxy = null;
   }
 }
