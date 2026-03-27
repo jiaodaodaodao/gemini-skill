@@ -246,7 +246,8 @@ server.registerTool(
   {
     description: `向 Gemini 发送文本消息并等待回答完成（不提取图片，纯文本交互）。
 
-【长耗时工具】同步阻塞等待 Gemini 回复完毕才返回。典型耗时 10~60 秒，必须等到最终结果再回传用户。`,
+【长耗时工具】同步阻塞等待 Gemini 回复完毕才返回。典型耗时 10~60 秒，必须等到最终结果再回传用户。
+【返回值】直接返回 Gemini 的回复文本内容，无需再调用 gemini_get_latest_text_response。`,
     inputSchema: {
       message: z.string().describe("要发送给 Gemini 的文本内容"),
       timeout: z.number().default(120000).describe("等待回答完成的超时时间（毫秒），默认 120000"),
@@ -261,8 +262,11 @@ server.registerTool(
       if (!result.ok) {
         return { content: [{ type: "text", text: `发送失败: ${result.error}，耗时 ${result.elapsed}ms` }], isError: true };
       }
+
+      // 直接返回 Gemini 的回复内容
+      const replyText = result.text || '（未能提取到回复文本）';
       return {
-        content: [{ type: "text", text: `消息已发送并等待完成，耗时 ${result.elapsed}ms` }],
+        content: [{ type: "text", text: replyText }],
       };
     } catch (err) {
       return { content: [{ type: "text", text: `执行崩溃: ${err.message}` }], isError: true };

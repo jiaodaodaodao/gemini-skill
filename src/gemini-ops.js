@@ -1092,7 +1092,15 @@ export function createOps(page) {
         onPoll?.(poll);
 
         if (poll.status === 'mic') {
-          return { ok: true, elapsed: Date.now() - start, finalStatus: poll };
+          // 回复完成，自动提取最新文字回复
+          const textResp = await this.getLatestTextResponse();
+          return {
+            ok: true,
+            elapsed: Date.now() - start,
+            finalStatus: poll,
+            text: textResp.ok ? textResp.text : null,
+            textIndex: textResp.ok ? textResp.index : null,
+          };
         }
         if (poll.status === 'unknown') {
           console.warn('[ops] unknown status, may need screenshot to debug');

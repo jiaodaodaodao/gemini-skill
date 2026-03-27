@@ -74,7 +74,7 @@ MCP 工具调用（尤其是生图、等待回复等）可能耗时较长（60~1
 
 | 工具名 | 说明 | 入参 |
 |--------|------|------|
-| `gemini_send_message` | 发送文本消息并等待回答完成 | `message`，`timeout`（默认120000ms） |
+| `gemini_send_message` | 发送文本消息并等待回答完成，直接返回 Gemini 的回复文本 | `message`，`timeout`（默认120000ms） |
 
 **图片操作：**
 
