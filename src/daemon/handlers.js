@@ -7,7 +7,7 @@
  *   POST /browser/release  — 主动销毁浏览器（硬重置）
  *   GET  /health           — Daemon 自身健康检查
  */
-import { ensureBrowserForDaemon, getBrowser, terminateBrowser } from './engine.js';
+import { ensureBrowserForDaemon, getBrowser, getRuntimeMeta, terminateBrowser } from './engine.js';
 import { resetHeartbeat, getLifecycleInfo } from './lifecycle.js';
 
 /**
@@ -28,6 +28,7 @@ export async function handleAcquire(_req, res) {
       ok: true,
       wsEndpoint,
       pid,
+      runtime: getRuntimeMeta(),
       lifecycle: getLifecycleInfo(),
     });
   } catch (err) {
@@ -70,6 +71,7 @@ export async function handleStatus(_req, res) {
       status: 'online',
       pid: browser.process()?.pid || null,
       wsEndpoint: browser.wsEndpoint(),
+      runtime: getRuntimeMeta(),
       pages,
       pageCount: pages.length,
       lifecycle: getLifecycleInfo(),

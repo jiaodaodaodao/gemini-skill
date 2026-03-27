@@ -189,7 +189,30 @@ npm install
 
 # Daemon 闲置超时（毫秒，默认 30 分钟）
 # DAEMON_TTL_MS=1800000
+
+# ============ Business2API 兼容模式（可选） ============
+# 启用后，gemini_send_message / gemini_generate_image 将调用 OpenAI 兼容接口
+# BUSINESS_MODE=true
+# BUSINESS_BASE_URL=https://your-business2api-domain.example
+# BUSINESS_API_KEY=your_api_key
+# BUSINESS_MODEL=gemini-2.5-flash
+# BUSINESS_IMAGE_MODEL=gemini-imagen
+#
+# 账号导入字符串（可选，支持 cfmail 临时邮箱格式）
+# BUSINESS_ACCOUNT=cfmail----you@example.com----jwtToken
+
+# ============ 代理池（可选，借鉴 gemini-business2api 的 IP 池思路） ============
+# 多个代理用逗号或换行分隔
+# PROXY_POOL=http://127.0.0.1:7890,socks5://127.0.0.1:1080
+# PROXY_STRATEGY=round_robin  # random / round_robin
 ```
+
+### Business 模式快速自检（建议）
+
+1. 先在 `.env` 设置好 `BUSINESS_MODE=true`、`BUSINESS_BASE_URL` 和 `BUSINESS_API_KEY`。
+2. 调用 `gemini_business_health_check`，确认 `ok=true` 且 `modelCount > 0`（该结果仅返回账号解析状态，不会回显邮箱/JWT 明文）。
+3. 调用 `gemini_business_account_parse`，确认 `provider/email/hasJwtToken` 符合预期。
+4. 再执行 `gemini_send_message` / `gemini_generate_image` 进行功能验证。
 
 也支持 `.env.development` 文件（优先级高于 `.env`）。
 
@@ -290,6 +313,8 @@ disconnect();
 | 工具名 | 说明 | 主要参数 |
 |--------|------|----------|
 | `gemini_check_login` | 检查 Google 登录状态 | 无 |
+| `gemini_business_account_parse` | 解析 business 账号字符串（支持 `cfmail----邮箱----jwt`） | `account`（可选） |
+| `gemini_business_health_check` | 检查 Business2API 配置并探测 `/v1/models` 连通性 | `timeout`（可选） |
 | `gemini_probe` | 探测页面元素状态 | 无 |
 | `gemini_reload_page` | 刷新页面 | `timeout` |
 | `gemini_browser_info` | 获取浏览器连接信息 | 无 |
