@@ -14,6 +14,7 @@
  *   GET  /health           — Daemon 健康检查
  */
 import { createServer } from 'node:http';
+import { timingSafeEqual } from 'node:crypto';
 import { handleAcquire, handleStatus, handleRelease, handleHealth } from './handlers.js';
 import { setTTL, cancelHeartbeat, setServer } from './lifecycle.js';
 import { terminateBrowser, onBrowserExit } from './engine.js';
@@ -21,17 +22,38 @@ import config from '../config.js';
 
 // ── 配置（统一从 config.js 读取） ──
 const PORT = config.daemonPort;
+const HOST = config.daemonHost;
 const TTL_MS = config.daemonTTL;
 
 setTTL(TTL_MS);
 
 // ── 路由表 ──
 const routes = {
-  'GET /browser/acquire': handleAcquire,
-  'GET /browser/status': handleStatus,
-  'POST /browser/release': handleRelease,
-  'GET /health': handleHealth,
+  'GET /browser/acquire': { handler: handleAcquire, public: false },
+  'GET /browser/status': { handler: handleStatus, public: false },
+  'POST /browser/release': { handler: handleRelease, public: false },
+  'GET /health': { handler: handleHealth, public: true },
 };
+
+function sendJSON(res, statusCode, data) {
+  res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify(data));
+}
+
+function isAuthorized(req) {
+  if (!config.daemonToken) return true;
+
+  const headerToken = req.headers['x-daemon-token'];
+  const authHeader = req.headers.authorization;
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+  const candidate = (typeof headerToken === 'string' && headerToken) || bearerToken;
+  if (!candidate) return false;
+
+  const expected = Buffer.from(config.daemonToken, 'utf8');
+  const provided = Buffer.from(candidate, 'utf8');
+  if (expected.length !== provided.length) return false;
+  return timingSafeEqual(expected, provided);
+}
 
 // ── HTTP 服务器 ──
 const server = createServer((req, res) => {
@@ -40,16 +62,19 @@ const server = createServer((req, res) => {
   const path = (url || '/').split('?')[0];
   const routeKey = `${method} ${path}`;
 
-  const handler = routes[routeKey];
-  if (handler) {
-    handler(req, res);
+  const route = routes[routeKey];
+  if (route) {
+    if (!route.public && !isAuthorized(req)) {
+      sendJSON(res, 401, { ok: false, error: 'unauthorized' });
+      return;
+    }
+    route.handler(req, res);
   } else {
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: false, error: 'not_found', path }));
+    sendJSON(res, 404, { ok: false, error: 'not_found', path });
   }
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
   // 注入 server 引用给 lifecycle，超时退出时优雅关闭 HTTP 服务
   setServer(server);
 
@@ -61,10 +86,11 @@ server.listen(PORT, () => {
     process.exit(0);
   });
 
-  console.log(`[daemon] 🚀 Browser Daemon 已启动 — http://127.0.0.1:${PORT}`);
+  console.log(`[daemon] 🚀 Browser Daemon 已启动 — http://${HOST}:${PORT}`);
   console.log(`[daemon] ⏱  闲置 TTL: ${(TTL_MS / 60000).toFixed(0)} 分钟`);
   console.log(`[daemon] 🖥  无头模式: ${config.browserHeadless ? '是' : '否'}`);
   console.log(`[daemon] 🔌 CDP 端口: ${config.browserDebugPort}`);
+  console.log(`[daemon] 🔐 Token 鉴权: ${config.daemonToken ? '已启用' : '未启用（仅建议本机监听）'}`);
   console.log(`[daemon]    GET  /browser/acquire  — 获取/启动浏览器`);
   console.log(`[daemon]    GET  /browser/status   — 查询浏览器状态`);
   console.log(`[daemon]    POST /browser/release  — 销毁浏览器`);

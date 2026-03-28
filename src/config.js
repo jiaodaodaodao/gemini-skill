@@ -170,6 +170,12 @@ const config = {
   /** Daemon HTTP 服务端口 */
   daemonPort: envInt('DAEMON_PORT', 40225),
 
+  /** Daemon 监听地址，默认仅本机可访问，避免暴露调试控制面 */
+  daemonHost: envStr('DAEMON_HOST', '127.0.0.1'),
+
+  /** Daemon 访问令牌（建议在需要跨主机访问时配置） */
+  daemonToken: envStr('DAEMON_TOKEN', ''),
+
   /** Daemon 闲置超时时间（ms），超时后自动终止浏览器释放资源 */
   daemonTTL: envInt('DAEMON_TTL_MS', 30 * 60 * 1000),
 };
