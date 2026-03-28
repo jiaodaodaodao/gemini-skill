@@ -18,6 +18,7 @@
  *     · dotenv 库: dotenv.config({ path: ['.env.development', '.env'] })
  */
 import { readFileSync, existsSync } from 'node:fs';
+import { isIP } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
@@ -130,6 +131,14 @@ function validateConfig(conf) {
   }
   if (conf.daemonHost !== '127.0.0.1' && !conf.daemonToken && conf.daemonAllowedIps.length === 0) {
     warnings.push('Daemon 监听非本地地址但未配置 DAEMON_TOKEN/DAEMON_ALLOWED_IPS，存在暴露风险');
+  }
+  if (conf.daemonToken && conf.daemonToken.length < 16) {
+    warnings.push('DAEMON_TOKEN 长度过短，建议至少 16 位');
+  }
+  for (const ip of conf.daemonAllowedIps) {
+    if (!['localhost', '127.0.0.1'].includes(ip) && isIP(ip) === 0) {
+      errors.push(`DAEMON_ALLOWED_IPS 包含非法 IP: ${ip}`);
+    }
   }
 
   for (const msg of warnings) {

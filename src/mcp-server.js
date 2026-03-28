@@ -1,8 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { writeFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { writeFileSync, mkdirSync, existsSync, statSync } from "node:fs";
+import { join, extname } from "node:path";
 
 // ─── stdio 保护：拦截所有 stdout 写入，强制走 stderr ───
 // 必须放在 import 之后、业务代码之前
@@ -31,6 +31,40 @@ const server = new McpServer({
   name: "gemini-mcp-server",
   version: "1.0.0",
 });
+
+const ALLOWED_REF_IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp']);
+const MAX_REFERENCE_IMAGE_BYTES = 20 * 1024 * 1024; // 20MB
+
+function isAllowedImageDataUrl(dataUrl) {
+  return /^data:image\/(png|jpeg|jpg|webp);base64,/i.test(dataUrl);
+}
+
+function parseDataUrlToImageBuffer(dataUrl) {
+  if (!isAllowedImageDataUrl(dataUrl)) {
+    throw new Error('unsupported_image_data_url');
+  }
+  const mimeMatch = dataUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,/i);
+  const base64Data = dataUrl.slice(mimeMatch[0].length);
+  const extRaw = mimeMatch[2].toLowerCase();
+  const ext = extRaw === 'jpeg' ? 'jpg' : extRaw;
+  return { ext, buffer: Buffer.from(base64Data, 'base64') };
+}
+
+function validateReferenceImagePath(imgPath) {
+  const normalized = (imgPath || '').trim();
+  if (!normalized) return { ok: false, error: 'empty_image_path' };
+  const ext = extname(normalized).toLowerCase();
+  if (!ALLOWED_REF_IMAGE_EXTS.has(ext)) {
+    return { ok: false, error: `unsupported_image_ext:${ext || 'none'}` };
+  }
+  if (!existsSync(normalized)) return { ok: false, error: 'image_not_found' };
+  const stat = statSync(normalized);
+  if (!stat.isFile()) return { ok: false, error: 'image_not_file' };
+  if (stat.size > MAX_REFERENCE_IMAGE_BYTES) {
+    return { ok: false, error: `image_too_large:${stat.size}` };
+  }
+  return { ok: true };
+}
 
 function buildDaemonAuthHeaders() {
   if (!config.daemonToken) return {};
@@ -109,6 +143,14 @@ server.registerTool(
       if (referenceImages.length > 0) {
 
         for (const imgPath of referenceImages) {
+          const pathCheck = validateReferenceImagePath(imgPath);
+          if (!pathCheck.ok) {
+            disconnect();
+            return {
+              content: [{ type: "text", text: `参考图路径不安全或不可用: ${imgPath}\n错误: ${pathCheck.error}` }],
+              isError: true,
+            };
+          }
           console.error(`[mcp] 正在上传参考图: ${imgPath}`);
           const uploadResult = await ops.uploadImage(imgPath);
           if (!uploadResult.ok) {
@@ -146,14 +188,12 @@ server.registerTool(
       }
 
       // base64 提取模式：写入本地文件，只返回文件路径（不返回 base64 数据，避免 MCP 协议校验问题）
-      const base64Data = result.dataUrl.split(',')[1];
-      const mimeMatch = result.dataUrl.match(/^data:(image\/\w+);/);
-      const ext = mimeMatch ? mimeMatch[1].split('/')[1] : 'png';
+      const { ext, buffer } = parseDataUrlToImageBuffer(result.dataUrl);
 
       mkdirSync(config.outputDir, { recursive: true });
       const filename = `gemini_${Date.now()}.${ext}`;
       const filePath = join(config.outputDir, filename);
-      writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+      writeFileSync(filePath, buffer);
 
       console.error(`[mcp] 图片已保存至 ${filePath}`);
 
@@ -430,14 +470,12 @@ server.registerTool(
       }
 
       // 保存到本地
-      const base64Data = result.dataUrl.split(',')[1];
-      const mimeMatch = result.dataUrl.match(/^data:(image\/\w+);/);
-      const ext = mimeMatch ? mimeMatch[1].split('/')[1] : 'png';
+      const { ext, buffer } = parseDataUrlToImageBuffer(result.dataUrl);
 
       mkdirSync(config.outputDir, { recursive: true });
       const filename = `gemini_${Date.now()}.${ext}`;
       const filePath = join(config.outputDir, filename);
-      writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+      writeFileSync(filePath, buffer);
 
       console.error(`[mcp] 图片已保存至 ${filePath}`);
 

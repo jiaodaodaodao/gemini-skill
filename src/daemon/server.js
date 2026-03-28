@@ -36,23 +36,58 @@ const routes = {
 };
 
 function sendJSON(res, statusCode, data) {
-  res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+  });
   res.end(JSON.stringify(data));
 }
 
 // ── HTTP 服务器 ──
 const server = createServer((req, res) => {
   const { method, url } = req;
+  if ((url || '').length > 2048) {
+    sendJSON(res, 414, { ok: false, error: 'uri_too_long' });
+    return;
+  }
   // 去掉 query string
   const path = (url || '/').split('?')[0];
   const routeKey = `${method} ${path}`;
 
   const route = routes[routeKey];
- main
+  if (!route) {
+    sendJSON(res, 404, { ok: false, error: 'not_found' });
+    return;
   }
 
-  route.handler(req, res);
+  if (!route.public) {
+    const authResult = authorizeRequest(req);
+    if (!authResult.ok) {
+      sendJSON(res, 403, {
+        ok: false,
+        error: authResult.reason,
+        clientIp: authResult.clientIp,
+      });
+      return;
+    }
+  }
+
+  Promise.resolve(route.handler(req, res)).catch((err) => {
+    console.error(`[daemon] ❌ route handler 崩溃: ${err?.message || String(err)}`);
+    if (!res.headersSent) {
+      sendJSON(res, 500, { ok: false, error: 'internal_error' });
+    } else {
+      res.end();
+    }
+  });
 });
+
+// 基础抗滥用参数（Slowloris/超长连接）
+server.requestTimeout = 15_000;
+server.headersTimeout = 10_000;
+server.keepAliveTimeout = 5_000;
+server.maxHeadersCount = 64;
 
 server.listen(PORT, HOST, () => {
   // 注入 server 引用给 lifecycle，超时退出时优雅关闭 HTTP 服务

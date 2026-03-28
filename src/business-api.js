@@ -4,6 +4,26 @@ function normalizeBaseUrl(baseUrl) {
   return (baseUrl || '').replace(/\/+$/, '');
 }
 
+function resolveBusinessUrl(pathname) {
+  const baseUrl = normalizeBaseUrl(config.businessBaseUrl);
+  if (!baseUrl) {
+    throw new Error('BUSINESS_BASE_URL 未配置');
+  }
+  let base;
+  try {
+    base = new URL(baseUrl);
+  } catch {
+    throw new Error('BUSINESS_BASE_URL 不是合法 URL');
+  }
+  if (!['http:', 'https:'].includes(base.protocol)) {
+    throw new Error('BUSINESS_BASE_URL 仅支持 http/https');
+  }
+  if (!pathname.startsWith('/')) {
+    throw new Error('business endpoint 必须使用绝对路径');
+  }
+  return new URL(pathname, base).toString();
+}
+
 const PROVIDER_RE = /^[a-z0-9][a-z0-9_-]{1,31}$/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -45,7 +65,9 @@ export function parseBusinessAccount(raw) {
   }
 
   const trimmed = raw.trim();
+  const parsed = parseProviderEmailJwt(trimmed) || parseEmailJwt(trimmed);
 
+  if (parsed) {
     const { provider, email, jwtToken } = parsed;
     if (!provider || !PROVIDER_RE.test(provider)) {
       logParseResult(provider, false, 'invalid_provider');
@@ -83,16 +105,13 @@ export function parseBusinessAccount(raw) {
 }
 
 async function requestJson(pathname, payload, timeoutMs) {
-  const baseUrl = normalizeBaseUrl(config.businessBaseUrl);
-  if (!baseUrl) {
-    throw new Error('BUSINESS_BASE_URL 未配置');
-  }
+  const requestUrl = resolveBusinessUrl(pathname);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const res = await fetch(`${baseUrl}${pathname}`, {
+    const res = await fetch(requestUrl, {
       method: 'POST',
       headers: buildAuthHeaders(),
       body: JSON.stringify(payload),
@@ -119,8 +138,7 @@ async function requestJson(pathname, payload, timeoutMs) {
 }
 
 export async function businessHealthCheck(timeoutMs = 8000) {
-  const baseUrl = normalizeBaseUrl(config.businessBaseUrl);
-  if (!baseUrl) {
+  if (!normalizeBaseUrl(config.businessBaseUrl)) {
     return {
       ok: false,
       error: 'missing_business_base_url',
@@ -146,7 +164,8 @@ export async function businessHealthCheck(timeoutMs = 8000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(`${baseUrl}/v1/models`, {
+    const modelsUrl = resolveBusinessUrl('/v1/models');
+    const res = await fetch(modelsUrl, {
       method: 'GET',
       headers: buildAuthHeaders(),
       signal: controller.signal,
@@ -172,7 +191,7 @@ export async function businessHealthCheck(timeoutMs = 8000) {
     const modelCount = Array.isArray(json?.data) ? json.data.length : 0;
     return {
       ok: true,
-      endpoint: `${baseUrl}/v1/models`,
+      endpoint: modelsUrl,
       modelCount,
       businessMode: !!config.businessMode,
       checks,
