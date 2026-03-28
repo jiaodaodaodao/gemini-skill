@@ -35,7 +35,12 @@ const DAEMON_SCRIPT = join(__dirname, 'daemon', 'server.js');
 // ── 模块级单例 ──
 let _browser = null;
 
-const DAEMON_URL = `http://127.0.0.1:${config.daemonPort}`;
+function resolveDaemonHost(host) {
+  if (!host || host === '0.0.0.0' || host === '::') return '127.0.0.1';
+  return host;
+}
+
+const DAEMON_URL = `http://${resolveDaemonHost(config.daemonHost)}:${config.daemonPort}`;
 
 // ── Daemon 自启动配置 ──
 /** 拉起 Daemon 后，等待就绪的最长时间（ms） */
@@ -47,9 +52,17 @@ const DAEMON_POLL_INTERVAL = 500;
  * 检查 Daemon 是否存活
  * @returns {Promise<boolean>}
  */
+function buildDaemonAuthHeaders() {
+  if (!config.daemonToken) return {};
+  return { 'x-daemon-token': config.daemonToken };
+}
+
 async function isDaemonAlive() {
   try {
-    const res = await fetch(`${DAEMON_URL}/health`, { signal: AbortSignal.timeout(2000) });
+    const res = await fetch(`${DAEMON_URL}/health`, {
+      signal: AbortSignal.timeout(2000),
+      headers: buildDaemonAuthHeaders(),
+    });
     const data = await res.json();
     return data.ok === true;
   } catch {
@@ -161,7 +174,9 @@ export async function ensureBrowser() {
   let acquireData;
   try {
     console.log(`[browser] 正在呼叫 Daemon: ${DAEMON_URL}/browser/acquire ...`);
-    const res = await fetch(`${DAEMON_URL}/browser/acquire`);
+    const res = await fetch(`${DAEMON_URL}/browser/acquire`, {
+      headers: buildDaemonAuthHeaders(),
+    });
     acquireData = await res.json();
 
     if (!acquireData.ok) {

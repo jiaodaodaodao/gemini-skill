@@ -44,8 +44,8 @@ export async function handleAcquire(_req, res) {
 /**
  * GET /browser/status
  *
- * 纯查询，不重置定时器。返回浏览器的健康状态、所有打开页面的信息。
- * Agent 拿到 pages 列表后可以精确定位出错的 Tab 并接管。
+ * 纯查询，不重置定时器。返回浏览器健康状态和已打开页面列表（按 index 编号）。
+ * Agent 可通过 index + url 识别并定位目标 Tab。
  */
 export async function handleStatus(_req, res) {
   const browser = getBrowser();
@@ -62,8 +62,8 @@ export async function handleStatus(_req, res) {
     const targets = browser.targets();
     const pages = targets
       .filter(t => t.type() === 'page')
-      .map(t => ({
-        targetId: t._targetId,
+      .map((t, index) => ({
+        index,
         url: t.url(),
       }));
 
