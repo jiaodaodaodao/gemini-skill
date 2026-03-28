@@ -8,12 +8,18 @@ function toSingleHeaderValue(value) {
 }
 
 function normalizeIp(ip) {
-  return ip === '::1' ? '127.0.0.1' : ip;
+  if (ip === '::1') return '127.0.0.1';
+  // Node 在 IPv4-mapped IPv6 下可能返回 ::ffff:127.0.0.1
+  if (ip?.startsWith('::ffff:')) return ip.slice(7);
+  return ip;
 }
 
 export function extractClientIp(req) {
-  const forwarded = toSingleHeaderValue(req.headers['x-forwarded-for']);
-  const candidate = (forwarded || req.socket?.remoteAddress || '').split(',')[0].trim();
+  const remoteAddr = normalizeIp(req.socket?.remoteAddress || '');
+  // 仅在本机回环地址接入时信任 x-forwarded-for，避免被外部伪造绕过 IP 白名单
+  const canTrustForwarded = remoteAddr === '127.0.0.1';
+  const forwarded = canTrustForwarded ? toSingleHeaderValue(req.headers['x-forwarded-for']) : '';
+  const candidate = (forwarded || remoteAddr || '').split(',')[0].trim();
   return normalizeIp(candidate);
 }
 

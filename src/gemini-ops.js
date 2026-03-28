@@ -12,6 +12,28 @@ import { mkdirSync, existsSync } from 'node:fs';
 import { resolve as pathResolve, normalize as pathNormalize } from 'node:path';
 import { removeWatermarkFromFile, removeWatermarkFromDataUrl } from './watermark-remover.js';
 
+const ALLOWED_IMAGE_HOST_SUFFIXES = [
+  'googleusercontent.com',
+  'ggpht.com',
+  'google.com',
+  'gstatic.com',
+];
+
+export function isAllowedImageUrl(rawUrl) {
+  if (typeof rawUrl !== 'string' || !rawUrl.trim()) return false;
+  if (rawUrl.startsWith('blob:') || rawUrl.startsWith('data:image/')) return true;
+  try {
+    const parsed = new URL(rawUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+    const hostname = parsed.hostname.toLowerCase();
+    return ALLOWED_IMAGE_HOST_SUFFIXES.some(
+      suffix => hostname === suffix || hostname.endsWith(`.${suffix}`)
+    );
+  } catch {
+    return false;
+  }
+}
+
 // ── Gemini 页面元素选择器 ──
 const SELECTORS = {
   promptInput: [
@@ -547,11 +569,15 @@ export function createOps(page) {
     *
     * @param {string} url - 目标图片的 src URL
     * @returns {Promise<{ok: boolean, dataUrl?: string, method?: 'canvas'|'fetch'|'cdp', error?: string}>}
-     */
+   */
    async extractImageBase64(url) {
      if (!url) {
        console.warn('[extractImageBase64] ❌ 未提供 url 参数');
        return { ok: false, error: 'missing_url' };
+     }
+     if (!isAllowedImageUrl(url)) {
+       console.warn('[extractImageBase64] ❌ URL 不在允许范围（仅支持 Gemini 图片域名）');
+       return { ok: false, error: 'url_not_allowed' };
      }
      console.log(`[extractImageBase64] 🔍 开始提取, url=${url.slice(0, 120)}...`);
 
@@ -1303,4 +1329,3 @@ function isLoggedIn(op) {
     return { ok: true, loggedIn: !notLoggedIn, barText: text, reason: 'one_google_bar' };
   }, SELECTORS);
 }
-

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import config from '../src/config.js';
-import { parseBusinessAccount, businessHealthCheck } from '../src/business-api.js';
+import { parseBusinessAccount, businessHealthCheck, businessChat } from '../src/business-api.js';
 
 const originalFetch = global.fetch;
 const originalConfig = {
@@ -91,4 +91,20 @@ test('businessHealthCheck: /v1/models 可用时返回 ok=true', async () => {
   assert.equal(result.businessMode, true);
   assert.equal(result.checks.accountParse.ok, true);
   assert.equal('email' in result.checks.accountParse, false);
+});
+
+test('businessHealthCheck: 非法 BUSINESS_BASE_URL 时返回 connect_failed', async () => {
+  config.businessBaseUrl = 'file:///tmp/bad';
+  const result = await businessHealthCheck(100);
+  assert.equal(result.ok, false);
+  assert.equal(result.error, 'connect_failed');
+  assert.match(result.detail, /仅支持 http\/https/);
+});
+
+test('businessChat: 非法 BUSINESS_BASE_URL 直接抛错', async () => {
+  config.businessBaseUrl = 'not-a-url';
+  await assert.rejects(
+    () => businessChat('hello', 100),
+    /不是合法 URL/
+  );
 });
