@@ -4,6 +4,32 @@ function normalizeBaseUrl(baseUrl) {
   return (baseUrl || '').replace(/\/+$/, '');
 }
 
+const PROVIDER_RE = /^[a-z0-9][a-z0-9_-]{1,31}$/i;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function parseProviderEmailJwt(raw) {
+  const parts = raw.split('----').map(s => s.trim());
+  if (parts.length < 3) return null;
+  const provider = (parts.shift() || '').toLowerCase();
+  const email = parts.shift() || '';
+  const jwtToken = parts.join('----').trim();
+  return { provider, email, jwtToken };
+}
+
+function parseEmailJwt(raw) {
+  const parts = raw.split('----').map(s => s.trim());
+  if (parts.length < 2) return null;
+  const email = parts.shift() || '';
+  const jwtToken = parts.join('----').trim();
+  return { provider: 'generic', email, jwtToken };
+}
+
+function logParseResult(provider, ok, reason = '') {
+  const providerLabel = provider || 'unknown';
+  const suffix = reason ? `, reason=${reason}` : '';
+  console.info(`[business-api] account parse result: provider=${providerLabel}, ok=${ok}${suffix}`);
+}
+
 function buildAuthHeaders() {
   const headers = { 'Content-Type': 'application/json' };
   if (config.businessApiKey) {
@@ -14,45 +40,48 @@ function buildAuthHeaders() {
 
 export function parseBusinessAccount(raw) {
   if (!raw || typeof raw !== 'string') {
+    logParseResult('unknown', false, 'empty_account');
     return { ok: false, error: 'empty_account' };
   }
 
   const trimmed = raw.trim();
-  const parts = trimmed.split('----').map(s => s.trim());
-  if (parts.length >= 3) {
-    const providerRaw = parts.shift();
-    const provider = (providerRaw || '').toLowerCase();
-    const email = parts.shift() || '';
-    const jwtToken = parts.join('----').trim();
-
-    if (!provider) {
-      return { ok: false, error: 'missing_provider' };
+  const parsers = [parseProviderEmailJwt, parseEmailJwt];
+  for (const parser of parsers) {
+    const parsed = parser(trimmed);
+    if (!parsed) continue;
+    const { provider, email, jwtToken } = parsed;
+    if (!provider || !PROVIDER_RE.test(provider)) {
+      logParseResult(provider, false, 'invalid_provider');
+      return { ok: false, error: 'invalid_provider' };
     }
-    if (!email || !email.includes('@')) {
+    if (!EMAIL_RE.test(email)) {
+      logParseResult(provider, false, `invalid_${provider}_email`);
       return { ok: false, error: `invalid_${provider}_email` };
     }
     if (!jwtToken) {
+      logParseResult(provider, false, `missing_${provider}_jwt`);
       return { ok: false, error: `missing_${provider}_jwt` };
     }
 
+    logParseResult(provider, true);
     return {
       ok: true,
       provider,
       email,
       jwtToken,
-      raw: trimmed,
     };
   }
 
-  if (trimmed.includes('@')) {
+  if (EMAIL_RE.test(trimmed)) {
+    logParseResult('generic', true);
     return {
       ok: true,
       provider: 'generic',
       email: trimmed,
-      raw: trimmed,
     };
   }
 
+  logParseResult('unknown', false, 'unsupported_account_format');
   return { ok: false, error: 'unsupported_account_format' };
 }
 

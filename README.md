@@ -169,7 +169,13 @@ npm install
 
 ## ⚙️ 配置
 
-所有配置通过环境变量或 `.env` 文件设置。在项目根目录创建 `.env` 文件：
+所有配置通过环境变量或 `.env` 文件设置。可先复制 `.env.example` 再按需修改：
+
+```bash
+cp .env.example .env
+```
+
+然后根据你的环境调整配置：
 
 ```env
 # 浏览器路径（不设则自动检测 Chrome/Edge/Chromium）
@@ -186,6 +192,12 @@ npm install
 
 # Daemon HTTP 端口（默认 40225）
 # DAEMON_PORT=40225
+# Daemon 监听地址（默认仅本机）
+# DAEMON_HOST=127.0.0.1
+# Daemon 访问令牌（建议公网暴露时开启）
+# DAEMON_TOKEN=your_strong_token
+# Daemon IP 白名单（可选，逗号分隔）
+# DAEMON_ALLOWED_IPS=127.0.0.1,10.0.0.8
 
 # Daemon 闲置超时（毫秒，默认 30 分钟）
 # DAEMON_TTL_MS=1800000

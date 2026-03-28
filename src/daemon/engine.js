@@ -29,6 +29,7 @@ let _shutdownCallback = null;  // 由 server 注入的关闭回调
 let _proxyCursor = 0;
 let _runtimeMeta = {
   selectedProxy: null,
+  hasProxyAuth: false,
 };
 
 /**
@@ -316,7 +317,8 @@ export async function ensureBrowserForDaemon() {
     defaultViewport: null,
     args: (() => {
       const pickedProxy = pickProxyFromPool();
-      _runtimeMeta.selectedProxy = pickedProxy;
+      _runtimeMeta.selectedProxy = sanitizeProxyForLog(pickedProxy);
+      _runtimeMeta.hasProxyAuth = Boolean(pickedProxy && /\/\/[^:@/]+:[^@/]+@/.test(pickedProxy));
       const proxyArg = pickedProxy ? [`--proxy-server=${pickedProxy}`] : [];
       if (pickedProxy) {
         console.log(`[engine] 启用代理: ${sanitizeProxyForLog(pickedProxy)} (strategy=${config.proxyStrategy})`);
@@ -333,7 +335,7 @@ export async function ensureBrowserForDaemon() {
 
   const pid = _browser.process()?.pid;
   registerDisconnectHandler(_browser);
-  console.log(`[engine] 浏览器已启动 pid=${pid} port=${port} path=${executablePath} proxy=${sanitizeProxyForLog(_runtimeMeta.selectedProxy) || 'none'}`);
+  console.log(`[engine] 浏览器已启动 pid=${pid} port=${port} path=${executablePath} proxy=${_runtimeMeta.selectedProxy || 'none'}`);
 
   return _browser;
 }
@@ -360,5 +362,6 @@ export async function terminateBrowser() {
     _browser = null;
     _shuttingDown = false;
     _runtimeMeta.selectedProxy = null;
+    _runtimeMeta.hasProxyAuth = false;
   }
 }

@@ -30,6 +30,14 @@ test('parseBusinessAccount: 支持 cfmail 格式', () => {
   assert.equal(parsed.jwtToken, 'jwtToken');
 });
 
+test('parseBusinessAccount: 支持 email+jwt 的 fallback 格式', () => {
+  const parsed = parseBusinessAccount('demo@example.com----jwtToken');
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.provider, 'generic');
+  assert.equal(parsed.email, 'demo@example.com');
+  assert.equal(parsed.jwtToken, 'jwtToken');
+});
+
 test('parseBusinessAccount: 支持其他 provider 的临时邮箱格式', () => {
   const parsed = parseBusinessAccount('mailtm----demo@example.com----jwt----token');
   assert.equal(parsed.ok, true);
@@ -48,6 +56,12 @@ test('parseBusinessAccount: 非法输入返回失败', () => {
   const parsed = parseBusinessAccount('bad-value');
   assert.equal(parsed.ok, false);
   assert.equal(parsed.error, 'unsupported_account_format');
+});
+
+test('parseBusinessAccount: 非法 provider 返回失败', () => {
+  const parsed = parseBusinessAccount('***----demo@example.com----jwtToken');
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.error, 'invalid_provider');
 });
 
 test('businessHealthCheck: 缺少 BUSINESS_BASE_URL 时返回 missing_business_base_url', async () => {
