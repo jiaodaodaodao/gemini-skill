@@ -96,8 +96,7 @@ MCP 工具调用（尤其是生图、等待回复等）可能耗时较长（60~1
 
 | 工具名 | 说明 | 入参 |
 |--------|------|------|
-| `gemini_check_login` | 检查是否已登录 Google 账号（含 business 账号页面兼容判断） | 无 |
-| `gemini_parse_temp_email_credential` | 解析临时邮箱账号串（兼容 `cfmail----you@example.com----jwtToken`） | `credential` |
+
 
 **页面导航：**
 

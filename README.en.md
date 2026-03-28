@@ -189,7 +189,30 @@ All configuration is done via environment variables or a `.env` file. Create a `
 
 # Daemon idle timeout in ms (default: 30 minutes)
 # DAEMON_TTL_MS=1800000
+
+# ============ Business2API compatibility mode (optional) ============
+# When enabled, gemini_send_message / gemini_generate_image use OpenAI-compatible API calls
+# BUSINESS_MODE=true
+# BUSINESS_BASE_URL=https://your-business2api-domain.example
+# BUSINESS_API_KEY=your_api_key
+# BUSINESS_MODEL=gemini-2.5-flash
+# BUSINESS_IMAGE_MODEL=gemini-imagen
+#
+# Optional account import string (supports cfmail temp-mail format)
+# BUSINESS_ACCOUNT=cfmail----you@example.com----jwtToken
+
+# ============ Proxy pool (optional, inspired by gemini-business2api IP pool) ============
+# Separate multiple proxies by comma or newline
+# PROXY_POOL=http://127.0.0.1:7890,socks5://127.0.0.1:1080
+# PROXY_STRATEGY=round_robin  # random / round_robin
 ```
+
+### Business mode quick self-check (recommended)
+
+1. Configure `BUSINESS_MODE=true`, `BUSINESS_BASE_URL`, and `BUSINESS_API_KEY` in `.env`.
+2. Run `gemini_business_health_check` and confirm `ok=true` and `modelCount > 0` (the result reports account parse status only and does not echo raw email/JWT).
+3. Run `gemini_business_account_parse` to verify `provider/email/hasJwtToken`.
+4. Then validate end-to-end with `gemini_send_message` / `gemini_generate_image`.
 
 `.env.development` is also supported (takes priority over `.env`).
 
@@ -289,8 +312,7 @@ disconnect();
 
 | Tool | Description | Key Parameters |
 |------|-------------|----------------|
-| `gemini_check_login` | Check Google login status (Gemini business page compatible) | — |
-| `gemini_parse_temp_email_credential` | Parse temp-mail import string (supports `cfmail----you@example.com----jwtToken`) | `credential` |
+
 | `gemini_probe` | Probe page element states | — |
 | `gemini_reload_page` | Reload the page | `timeout` |
 | `gemini_browser_info` | Get browser connection info | — |

@@ -98,6 +98,16 @@ function envStr(key, fallback) {
   return (val !== undefined && val !== '') ? val : fallback;
 }
 
+/** 辅助：读取字符串数组环境变量（逗号或换行分隔） */
+function envList(key, fallback = []) {
+  const val = env[key];
+  if (val === undefined || val === '') return fallback;
+  return val
+    .split(/[\n,]/)
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
 // ── 导出配置 ──
 
 const config = {
@@ -126,6 +136,34 @@ const config = {
 
   /** 截图 / 图片输出目录 */
   outputDir: envStr('OUTPUT_DIR', join(projectRoot, 'gemini-image')),
+
+  // ── Business2API 兼容配置 ──
+
+  /** 是否启用 Business2API 模式（启用后 gemini_send_message / gemini_generate_image 走 OpenAI 兼容接口） */
+  businessMode: envBool('BUSINESS_MODE', false),
+
+  /** Business2API 服务地址，例如 https://your-domain.example */
+  businessBaseUrl: envStr('BUSINESS_BASE_URL', ''),
+
+  /** Business2API 的 API Key（对应 Authorization: Bearer xxx，可留空） */
+  businessApiKey: envStr('BUSINESS_API_KEY', ''),
+
+  /** Business2API 文本模型 */
+  businessModel: envStr('BUSINESS_MODEL', 'gemini-2.5-flash'),
+
+  /** Business2API 图片模型 */
+  businessImageModel: envStr('BUSINESS_IMAGE_MODEL', 'gemini-imagen'),
+
+  /** Business2API 账号导入字符串（支持 cfmail----you@example.com----jwtToken） */
+  businessAccount: envStr('BUSINESS_ACCOUNT', ''),
+
+  // ── 代理池配置（借鉴 business2api 的“代理池 + 轮换”思路） ──
+
+  /** 代理池，支持逗号/换行分隔，例如 http://1.1.1.1:7890, socks5://2.2.2.2:1080 */
+  proxyPool: envList('PROXY_POOL', []),
+
+  /** 代理选择策略：random / round_robin */
+  proxyStrategy: envStr('PROXY_STRATEGY', 'round_robin'),
 
   // ── Daemon 配置 ──
 
