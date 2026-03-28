@@ -40,13 +40,19 @@ function sendJSON(res, statusCode, data) {
   res.end(JSON.stringify(data));
 }
 
+function toSingleHeaderValue(value) {
+  if (Array.isArray(value)) return value[0] || '';
+  if (typeof value === 'string') return value;
+  return '';
+}
+
 function isAuthorized(req) {
   if (!config.daemonToken) return true;
 
-  const headerToken = req.headers['x-daemon-token'];
-  const authHeader = req.headers.authorization;
-  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-  const candidate = (typeof headerToken === 'string' && headerToken) || bearerToken;
+  const headerToken = toSingleHeaderValue(req.headers['x-daemon-token']).trim();
+  const authHeader = toSingleHeaderValue(req.headers.authorization);
+  const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+  const candidate = headerToken || bearerToken;
   if (!candidate) return false;
 
   const expected = Buffer.from(config.daemonToken, 'utf8');

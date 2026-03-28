@@ -32,6 +32,11 @@ const server = new McpServer({
   version: "1.0.0",
 });
 
+function buildDaemonAuthHeaders() {
+  if (!config.daemonToken) return {};
+  return { 'x-daemon-token': config.daemonToken };
+}
+
 // 注册工具
 server.registerTool(
   "gemini_generate_image",
@@ -380,8 +385,8 @@ server.registerTool(
     const safe = {
       ok: true,
       provider: result.provider,
-      email: result.email,
       hasJwtToken: !!result.jwtToken,
+      accountType: result.jwtToken ? 'email_jwt' : 'email_only',
     };
     return {
       content: [{ type: "text", text: JSON.stringify(safe, null, 2) }],
@@ -691,7 +696,10 @@ server.registerTool(
 
     try {
       // 1. 检查 Daemon 健康状态
-      const healthRes = await fetch(`${daemonUrl}/health`, { signal: AbortSignal.timeout(3000) });
+      const healthRes = await fetch(`${daemonUrl}/health`, {
+        signal: AbortSignal.timeout(3000),
+        headers: buildDaemonAuthHeaders(),
+      });
       const health = await healthRes.json();
 
       if (!health.ok) {
@@ -702,7 +710,10 @@ server.registerTool(
       }
 
       // 2. 获取浏览器连接信息
-      const acquireRes = await fetch(`${daemonUrl}/browser/acquire`, { signal: AbortSignal.timeout(5000) });
+      const acquireRes = await fetch(`${daemonUrl}/browser/acquire`, {
+        signal: AbortSignal.timeout(5000),
+        headers: buildDaemonAuthHeaders(),
+      });
       const acquire = await acquireRes.json();
 
       const info = {
