@@ -129,6 +129,18 @@ MCP 工具调用（尤其是生图、等待回复等）可能耗时较长（60~1
 2. `gemini_reload_page` — 页面卡了就刷新
 3. `gemini_browser_info` — 获取 CDP 信息自行连接调试
 
+### Business 工具示例（账号解析）
+
+如启用了 Business2API 模式，推荐先做账号字符串检查：
+
+1. 调用 `gemini_business_account_parse`，输入：
+   - `cfmail----you@example.com----jwtToken`
+2. 期望返回（示例）：
+   - `{"ok": true, "provider": "cfmail", "hasJwtToken": true, "accountType": "email_jwt"}`
+3. 安全约束：
+   - 返回中不会包含邮箱明文或 JWT 明文。
+   - 解析失败时也仅返回错误码（例如 `invalid_provider` / `missing_cfmail_jwt`）。
+
 ## MCP 客户端配置
 
 ```json
