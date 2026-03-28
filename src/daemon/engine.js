@@ -335,7 +335,7 @@ export async function ensureBrowserForDaemon() {
 
   const pid = _browser.process()?.pid;
   registerDisconnectHandler(_browser);
-  console.log(`[engine] 浏览器已启动 pid=${pid} port=${port} path=${executablePath} proxy=${sanitizeProxyForLog(_runtimeMeta.selectedProxy) || 'none'}`);
+  console.log(`[engine] 浏览器已启动 pid=${pid} port=${port} path=${executablePath} proxy=${_runtimeMeta.selectedProxy || 'none'}`);
 
   return _browser;
 }
@@ -362,5 +362,6 @@ export async function terminateBrowser() {
     _browser = null;
     _shuttingDown = false;
     _runtimeMeta.selectedProxy = null;
+    _runtimeMeta.hasProxyAuth = false;
   }
 }

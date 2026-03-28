@@ -17,10 +17,9 @@
  *     · Node.js ≥ v20.6.0: node --env-file=.env --env-file=.env.development app.js
  *     · dotenv 库: dotenv.config({ path: ['.env.development', '.env'] })
  */
-import { resolve } from 'node:path';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 // ── 手动加载 .env 文件（不依赖 dotenv） ──
 
@@ -63,17 +62,17 @@ function parseEnvFile(filePath) {
 const devEnv = parseEnvFile(join(projectRoot, '.env.development'));
 const baseEnv = parseEnvFile(join(projectRoot, '.env'));
 
+function applyEnvIfMissing(source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (process.env[key] === undefined || process.env[key] === '') {
+      process.env[key] = value;
+    }
+  }
+}
+
 // 优先级：process.env > .env.development > .env > 代码默认值
-for (const [key, value] of Object.entries(devEnv)) {
-  if (process.env[key] === undefined || process.env[key] === '') {
-    process.env[key] = value;
-  }
-}
-for (const [key, value] of Object.entries(baseEnv)) {
-  if (process.env[key] === undefined || process.env[key] === '') {
-    process.env[key] = value;
-  }
-}
+applyEnvIfMissing(devEnv);
+applyEnvIfMissing(baseEnv);
 
 const env = process.env;
 
