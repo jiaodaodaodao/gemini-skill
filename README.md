@@ -198,7 +198,7 @@ npm install
 # BUSINESS_MODEL=gemini-2.5-flash
 # BUSINESS_IMAGE_MODEL=gemini-imagen
 #
-# 账号导入字符串（可选，支持 cfmail 临时邮箱格式）
+# 账号导入字符串（可选，支持 cfmail 及同类临时邮箱格式）
 # BUSINESS_ACCOUNT=cfmail----you@example.com----jwtToken
 
 # ============ 代理池（可选，借鉴 gemini-business2api 的 IP 池思路） ============
@@ -211,7 +211,7 @@ npm install
 
 1. 先在 `.env` 设置好 `BUSINESS_MODE=true`、`BUSINESS_BASE_URL` 和 `BUSINESS_API_KEY`。
 2. 调用 `gemini_business_health_check`，确认 `ok=true` 且 `modelCount > 0`（该结果仅返回账号解析状态，不会回显邮箱/JWT 明文）。
-3. 调用 `gemini_business_account_parse`，确认 `provider/email/hasJwtToken` 符合预期。
+3. 调用 `gemini_business_account_parse`，确认 `provider/hasJwtToken` 符合预期（不会回显邮箱/JWT）。
 4. 再执行 `gemini_send_message` / `gemini_generate_image` 进行功能验证。
 
 也支持 `.env.development` 文件（优先级高于 `.env`）。

@@ -30,6 +30,20 @@ test('parseBusinessAccount: 支持 cfmail 格式', () => {
   assert.equal(parsed.jwtToken, 'jwtToken');
 });
 
+test('parseBusinessAccount: 支持其他 provider 的临时邮箱格式', () => {
+  const parsed = parseBusinessAccount('mailtm----demo@example.com----jwt----token');
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.provider, 'mailtm');
+  assert.equal(parsed.email, 'demo@example.com');
+  assert.equal(parsed.jwtToken, 'jwt----token');
+});
+
+test('parseBusinessAccount: 缺失 jwt 时返回失败', () => {
+  const parsed = parseBusinessAccount('cfmail----demo@example.com----');
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.error, 'missing_cfmail_jwt');
+});
+
 test('parseBusinessAccount: 非法输入返回失败', () => {
   const parsed = parseBusinessAccount('bad-value');
   assert.equal(parsed.ok, false);
@@ -60,6 +74,7 @@ test('businessHealthCheck: /v1/models 可用时返回 ok=true', async () => {
   const result = await businessHealthCheck(200);
   assert.equal(result.ok, true);
   assert.equal(result.modelCount, 2);
+  assert.equal(result.businessMode, true);
   assert.equal(result.checks.accountParse.ok, true);
   assert.equal('email' in result.checks.accountParse, false);
 });

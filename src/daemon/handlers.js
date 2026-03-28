@@ -9,6 +9,7 @@
  */
 import { ensureBrowserForDaemon, getBrowser, getRuntimeMeta, terminateBrowser } from './engine.js';
 import { resetHeartbeat, getLifecycleInfo } from './lifecycle.js';
+import config from '../config.js';
 
 /**
  * GET /browser/acquire
@@ -49,12 +50,20 @@ export async function handleAcquire(_req, res) {
  */
 export async function handleStatus(_req, res) {
   const browser = getBrowser();
+  const basePayload = {
+    ok: true,
+    status: 'offline',
+    pid: null,
+    wsEndpoint: null,
+    runtime: null,
+    pages: [],
+    pageCount: 0,
+    lifecycle: getLifecycleInfo(),
+    error: null,
+  };
 
   if (!browser || !browser.isConnected()) {
-    sendJSON(res, 200, {
-      status: 'offline',
-      lifecycle: getLifecycleInfo(),
-    });
+    sendJSON(res, 200, basePayload);
     return;
   }
 
@@ -68,19 +77,19 @@ export async function handleStatus(_req, res) {
       }));
 
     sendJSON(res, 200, {
+      ...basePayload,
       status: 'online',
       pid: browser.process()?.pid || null,
       wsEndpoint: browser.wsEndpoint(),
       runtime: getRuntimeMeta(),
       pages,
       pageCount: pages.length,
-      lifecycle: getLifecycleInfo(),
     });
   } catch (err) {
     sendJSON(res, 200, {
+      ...basePayload,
       status: 'error',
       error: err.message,
-      lifecycle: getLifecycleInfo(),
     });
   }
 }
@@ -123,6 +132,7 @@ export function handleHealth(_req, res) {
     service: 'browser-daemon',
     uptime: Math.round(process.uptime()),
     memoryMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
+    businessMode: !!config.businessMode,
   });
 }
 

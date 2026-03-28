@@ -18,18 +18,26 @@ export function parseBusinessAccount(raw) {
   }
 
   const trimmed = raw.trim();
-  const cfmail = trimmed.split('----');
-  if (cfmail.length === 3 && cfmail[0].toLowerCase() === 'cfmail') {
-    const [, email, jwtToken] = cfmail;
-    if (!email.includes('@')) {
-      return { ok: false, error: 'invalid_cfmail_email' };
+  const parts = trimmed.split('----').map(s => s.trim());
+  if (parts.length >= 3) {
+    const providerRaw = parts.shift();
+    const provider = (providerRaw || '').toLowerCase();
+    const email = parts.shift() || '';
+    const jwtToken = parts.join('----').trim();
+
+    if (!provider) {
+      return { ok: false, error: 'missing_provider' };
+    }
+    if (!email || !email.includes('@')) {
+      return { ok: false, error: `invalid_${provider}_email` };
     }
     if (!jwtToken) {
-      return { ok: false, error: 'missing_cfmail_jwt' };
+      return { ok: false, error: `missing_${provider}_jwt` };
     }
+
     return {
       ok: true,
-      provider: 'cfmail',
+      provider,
       email,
       jwtToken,
       raw: trimmed,
@@ -140,6 +148,7 @@ export async function businessHealthCheck(timeoutMs = 8000) {
       ok: true,
       endpoint: `${baseUrl}/v1/models`,
       modelCount,
+      businessMode: !!config.businessMode,
       checks,
     };
   } catch (err) {
@@ -147,6 +156,7 @@ export async function businessHealthCheck(timeoutMs = 8000) {
       ok: false,
       error: 'connect_failed',
       detail: err?.message || String(err),
+      businessMode: !!config.businessMode,
       checks,
     };
   } finally {
