@@ -289,7 +289,8 @@ disconnect();
 
 | Tool | Description | Key Parameters |
 |------|-------------|----------------|
-| `gemini_check_login` | Check Google login status | — |
+| `gemini_check_login` | Check Google login status (Gemini business page compatible) | — |
+| `gemini_parse_temp_email_credential` | Parse temp-mail import string (supports `cfmail----you@example.com----jwtToken`) | `credential` |
 | `gemini_probe` | Probe page element states | — |
 | `gemini_reload_page` | Reload the page | `timeout` |
 | `gemini_browser_info` | Get browser connection info | — |

@@ -1220,18 +1220,84 @@ function isImageLoaded(op) {
  * @returns {Promise<{ok: boolean, loggedIn: boolean, barText?: string, error?: string}>}
  */
 function isLoggedIn(op) {
-  return op.query(() => {
+  return op.query((selectors) => {
+    const signInHints = [
+      'a[href*="accounts.google.com"][href*="signin"]',
+      'button[aria-label*="sign in" i]',
+      'a[aria-label*="sign in" i]',
+      'button:has-text("登录")',
+      'a:has-text("登录")',
+      'button:has-text("Sign in")',
+      'a:has-text("Sign in")',
+    ];
+
+    // 1) 如果明显存在登录入口，直接判定未登录
+    for (const sel of signInHints) {
+      try {
+        if (sel.includes(':has-text(')) {
+          const m = sel.match(/^(.*):has-text\("(.*)"\)$/);
+          if (m) {
+            const candidates = [...document.querySelectorAll(m[1] || '*')];
+            const hit = candidates.find(n => {
+              const r = n.getBoundingClientRect();
+              const st = getComputedStyle(n);
+              return r.width > 0 && r.height > 0
+                && st.display !== 'none' && st.visibility !== 'hidden'
+                && n.textContent?.includes(m[2]);
+            });
+            if (hit) {
+              return { ok: true, loggedIn: false, barText: (hit.textContent || '').trim(), reason: 'sign_in_entry_visible' };
+            }
+          }
+        } else {
+          const node = document.querySelector(sel);
+          if (node) {
+            return { ok: true, loggedIn: false, barText: (node.textContent || '').trim(), reason: 'sign_in_entry_visible' };
+          }
+        }
+      } catch { /* ignore invalid selector */ }
+    }
+
+    // 2) 若能看到核心交互元素，则视为已登录（兼容 business 账号界面）
+    const checkVisibleBySelectors = (sels) => {
+      for (const sel of sels) {
+        try {
+          const all = [...document.querySelectorAll(sel)];
+          const visible = all.find(n => {
+            const r = n.getBoundingClientRect();
+            const st = getComputedStyle(n);
+            return r.width > 0 && r.height > 0 && st.display !== 'none' && st.visibility !== 'hidden';
+          });
+          if (visible) return true;
+        } catch { /* ignore */ }
+      }
+      return false;
+    };
+
+    const hasPromptInput = checkVisibleBySelectors(selectors.promptInput || []);
+    const hasNewChat = checkVisibleBySelectors(selectors.newChatBtn || []);
+
+    if (hasPromptInput || hasNewChat) {
+      return {
+        ok: true,
+        loggedIn: true,
+        barText: hasPromptInput ? 'prompt_input_visible' : 'new_chat_visible',
+        reason: 'workspace_ready',
+      };
+    }
+
+    // 3) 兜底读取 OneGoogleBar（旧逻辑）
     const bar = document.querySelector('div.boqOnegoogleliteOgbOneGoogleBar');
     if (!bar) {
-      return { ok: false, loggedIn: false, error: 'login_bar_not_found' };
+      return { ok: false, loggedIn: false, error: 'login_state_uncertain' };
     }
 
     const text = (bar.innerText || '').trim();
     const lower = text.toLowerCase();
     const notLoggedIn = lower.includes('登录') || lower.includes('sign in');
 
-    return { ok: true, loggedIn: !notLoggedIn, barText: text };
-  });
+    return { ok: true, loggedIn: !notLoggedIn, barText: text, reason: 'one_google_bar' };
+  }, SELECTORS);
 }
 
 

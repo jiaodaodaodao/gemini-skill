@@ -289,7 +289,8 @@ disconnect();
 
 | 工具名 | 说明 | 主要参数 |
 |--------|------|----------|
-| `gemini_check_login` | 检查 Google 登录状态 | 无 |
+| `gemini_check_login` | 检查 Google 登录状态（兼容 Gemini business 页面） | 无 |
+| `gemini_parse_temp_email_credential` | 解析临时邮箱导入串（兼容 `cfmail----you@example.com----jwtToken`） | `credential` |
 | `gemini_probe` | 探测页面元素状态 | 无 |
 | `gemini_reload_page` | 刷新页面 | `timeout` |
 | `gemini_browser_info` | 获取浏览器连接信息 | 无 |
@@ -353,6 +354,17 @@ gemini-skill/
 
 <br>
 
+
+
+### 临时邮箱导入格式（CFMail）
+
+如需与 `gemini-business2api` 的账号导入格式保持一致，可使用：
+
+```
+cfmail----you@example.com----jwtToken
+```
+
+可直接调用 MCP 工具 `gemini_parse_temp_email_credential` 做格式校验与规范化。
 ## ⚠️ 注意事项
 
 1. **首次使用需登录** — 第一次运行时浏览器会打开 Gemini 页面，请手动完成 Google 账号登录。登录状态会保存在 `userDataDir` 中，后续无需重复登录。
