@@ -14,10 +14,10 @@
  *   GET  /health           — Daemon 健康检查
  */
 import { createServer } from 'node:http';
-import { timingSafeEqual } from 'node:crypto';
 import { handleAcquire, handleStatus, handleRelease, handleHealth } from './handlers.js';
 import { setTTL, cancelHeartbeat, setServer } from './lifecycle.js';
 import { terminateBrowser, onBrowserExit } from './engine.js';
+import { authorizeRequest } from './auth.js';
 import config from '../config.js';
 
 // ── 配置（统一从 config.js 读取） ──
@@ -40,27 +40,6 @@ function sendJSON(res, statusCode, data) {
   res.end(JSON.stringify(data));
 }
 
-function toSingleHeaderValue(value) {
-  if (Array.isArray(value)) return value[0] || '';
-  if (typeof value === 'string') return value;
-  return '';
-}
-
-function isAuthorized(req) {
-  if (!config.daemonToken) return true;
-
-  const headerToken = toSingleHeaderValue(req.headers['x-daemon-token']).trim();
-  const authHeader = toSingleHeaderValue(req.headers.authorization);
-  const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-  const candidate = headerToken || bearerToken;
-  if (!candidate) return false;
-
-  const expected = Buffer.from(config.daemonToken, 'utf8');
-  const provided = Buffer.from(candidate, 'utf8');
-  if (expected.length !== provided.length) return false;
-  return timingSafeEqual(expected, provided);
-}
-
 // ── HTTP 服务器 ──
 const server = createServer((req, res) => {
   const { method, url } = req;
@@ -70,11 +49,15 @@ const server = createServer((req, res) => {
 
   const route = routes[routeKey];
   if (route) {
-    if (!route.public && !isAuthorized(req)) {
-      sendJSON(res, 401, { ok: false, error: 'unauthorized' });
-      return;
+    if (!route.public) {
+      const auth = authorizeRequest(req);
+      if (!auth.ok) {
+        sendJSON(res, 401, { ok: false, error: 'unauthorized', reason: auth.reason });
+        return;
+      }
     }
     route.handler(req, res);
+    return;
   } else {
     sendJSON(res, 404, { ok: false, error: 'not_found', path });
   }
@@ -97,6 +80,7 @@ server.listen(PORT, HOST, () => {
   console.log(`[daemon] 🖥  无头模式: ${config.browserHeadless ? '是' : '否'}`);
   console.log(`[daemon] 🔌 CDP 端口: ${config.browserDebugPort}`);
   console.log(`[daemon] 🔐 Token 鉴权: ${config.daemonToken ? '已启用' : '未启用（仅建议本机监听）'}`);
+  console.log(`[daemon] 🧱 IP 白名单: ${config.daemonAllowedIps.length > 0 ? config.daemonAllowedIps.join(', ') : '未启用'}`);
   console.log(`[daemon]    GET  /browser/acquire  — 获取/启动浏览器`);
   console.log(`[daemon]    GET  /browser/status   — 查询浏览器状态`);
   console.log(`[daemon]    POST /browser/release  — 销毁浏览器`);

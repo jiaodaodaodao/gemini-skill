@@ -108,6 +108,39 @@ function envList(key, fallback = []) {
     .filter(Boolean);
 }
 
+function normalizeIp(ip) {
+  return ip === '::1' ? '127.0.0.1' : ip;
+}
+
+function validateConfig(conf) {
+  const warnings = [];
+  const errors = [];
+
+  if (!Number.isInteger(conf.daemonPort) || conf.daemonPort < 1 || conf.daemonPort > 65535) {
+    errors.push('DAEMON_PORT 必须是 1-65535 之间的整数');
+  }
+  if (!Number.isInteger(conf.daemonTTL) || conf.daemonTTL < 1000) {
+    errors.push('DAEMON_TTL_MS 必须是大于等于 1000 的整数');
+  }
+  if (!['random', 'round_robin'].includes(conf.proxyStrategy)) {
+    warnings.push(`PROXY_STRATEGY=${conf.proxyStrategy} 无效，已回退为 round_robin`);
+    conf.proxyStrategy = 'round_robin';
+  }
+  if (conf.businessMode && !conf.businessBaseUrl) {
+    warnings.push('BUSINESS_MODE=true 但 BUSINESS_BASE_URL 为空');
+  }
+  if (conf.daemonHost !== '127.0.0.1' && !conf.daemonToken && conf.daemonAllowedIps.length === 0) {
+    warnings.push('Daemon 监听非本地地址但未配置 DAEMON_TOKEN/DAEMON_ALLOWED_IPS，存在暴露风险');
+  }
+
+  for (const msg of warnings) {
+    console.warn(`[config] ⚠ ${msg}`);
+  }
+  if (errors.length > 0) {
+    throw new Error(`[config] 配置校验失败: ${errors.join('；')}`);
+  }
+}
+
 // ── 导出配置 ──
 
 const config = {
@@ -176,8 +209,13 @@ const config = {
   /** Daemon 访问令牌（建议在需要跨主机访问时配置） */
   daemonToken: envStr('DAEMON_TOKEN', ''),
 
+  /** Daemon IP 白名单（逗号/换行分隔），空表示不限制 */
+  daemonAllowedIps: envList('DAEMON_ALLOWED_IPS', []).map(normalizeIp),
+
   /** Daemon 闲置超时时间（ms），超时后自动终止浏览器释放资源 */
   daemonTTL: envInt('DAEMON_TTL_MS', 30 * 60 * 1000),
 };
+
+validateConfig(config);
 
 export default config;
