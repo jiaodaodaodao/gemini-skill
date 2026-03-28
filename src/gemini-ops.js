@@ -1231,7 +1231,15 @@ function isLoggedIn(op) {
       'a:has-text("Sign in")',
     ];
 
-    // 1) 如果明显存在登录入口，直接判定未登录
+    const isVisible = (node) => {
+      if (!node) return false;
+      const r = node.getBoundingClientRect();
+      const st = getComputedStyle(node);
+      return r.width > 0 && r.height > 0
+        && st.display !== 'none' && st.visibility !== 'hidden';
+    };
+
+    // 1) 如果明显存在登录入口，且入口可见，直接判定未登录
     for (const sel of signInHints) {
       try {
         if (sel.includes(':has-text(')) {
@@ -1239,11 +1247,7 @@ function isLoggedIn(op) {
           if (m) {
             const candidates = [...document.querySelectorAll(m[1] || '*')];
             const hit = candidates.find(n => {
-              const r = n.getBoundingClientRect();
-              const st = getComputedStyle(n);
-              return r.width > 0 && r.height > 0
-                && st.display !== 'none' && st.visibility !== 'hidden'
-                && n.textContent?.includes(m[2]);
+              return isVisible(n) && n.textContent?.includes(m[2]);
             });
             if (hit) {
               return { ok: true, loggedIn: false, barText: (hit.textContent || '').trim(), reason: 'sign_in_entry_visible' };
@@ -1251,7 +1255,7 @@ function isLoggedIn(op) {
           }
         } else {
           const node = document.querySelector(sel);
-          if (node) {
+          if (isVisible(node)) {
             return { ok: true, loggedIn: false, barText: (node.textContent || '').trim(), reason: 'sign_in_entry_visible' };
           }
         }
@@ -1299,5 +1303,4 @@ function isLoggedIn(op) {
     return { ok: true, loggedIn: !notLoggedIn, barText: text, reason: 'one_google_bar' };
   }, SELECTORS);
 }
-
 
