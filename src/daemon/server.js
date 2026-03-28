@@ -48,17 +48,7 @@ const server = createServer((req, res) => {
   const routeKey = `${method} ${path}`;
 
   const route = routes[routeKey];
-  if (!route) {
-    sendJSON(res, 404, { ok: false, error: 'not_found', path });
-    return;
-  }
-
-  if (!route.public) {
-    const auth = authorizeRequest(req);
-    if (!auth.ok) {
-      sendJSON(res, 401, { ok: false, error: 'unauthorized', reason: auth.reason });
-      return;
-    }
+ main
   }
 
   route.handler(req, res);

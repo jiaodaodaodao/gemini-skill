@@ -45,10 +45,7 @@ export function parseBusinessAccount(raw) {
   }
 
   const trimmed = raw.trim();
-  const parsers = [parseProviderEmailJwt, parseEmailJwt];
-  for (const parser of parsers) {
-    const parsed = parser(trimmed);
-    if (!parsed) continue;
+
     const { provider, email, jwtToken } = parsed;
     if (!provider || !PROVIDER_RE.test(provider)) {
       logParseResult(provider, false, 'invalid_provider');
