@@ -312,9 +312,7 @@ disconnect();
 
 | Tool | Description | Key Parameters |
 |------|-------------|----------------|
-| `gemini_check_login` | Check Google login status | — |
-| `gemini_business_account_parse` | Parse business account string (supports `cfmail----email----jwt`) | `account` (optional) |
-| `gemini_business_health_check` | Validate Business2API config and probe `/v1/models` connectivity | `timeout` (optional) |
+
 | `gemini_probe` | Probe page element states | — |
 | `gemini_reload_page` | Reload the page | `timeout` |
 | `gemini_browser_info` | Get browser connection info | — |

@@ -25,7 +25,7 @@ console.debug = console.error;
 import { createGeminiSession, disconnect } from './index.js';
 import config from './config.js';
 import { sleep } from './util.js';
-import { businessChat, businessGenerateImage, businessHealthCheck, parseBusinessAccount } from './business-api.js';
+
 
 const server = new McpServer({
   name: "gemini-mcp-server",
@@ -567,6 +567,33 @@ server.registerTool(
     } catch (err) {
       return { content: [{ type: "text", text: `执行崩溃: ${err.message}` }], isError: true };
     }
+  }
+);
+
+
+// ─── 临时邮箱账号格式适配 ───
+
+server.registerTool(
+  "gemini_parse_temp_email_credential",
+  {
+    description: "解析临时邮箱账号导入字符串，兼容 gemini-business2api 的 cfmail----you@example.com----jwtToken 格式，并返回规范化结果",
+    inputSchema: {
+      credential: z.string().describe("账号串，例如 cfmail----you@example.com----jwtToken"),
+    },
+  },
+  async ({ credential }) => {
+    const parsed = parseTempEmailCredential(credential);
+
+    if (!parsed.ok) {
+      return {
+        content: [{ type: "text", text: `格式解析失败: ${parsed.error}\n期望示例: cfmail----you@example.com----jwtToken` }],
+        isError: true,
+      };
+    }
+
+    return {
+      content: [{ type: "text", text: JSON.stringify(parsed, null, 2) }],
+    };
   }
 );
 
